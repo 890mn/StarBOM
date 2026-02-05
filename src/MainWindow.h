@@ -8,6 +8,7 @@ class QTableWidget;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 
 class MainWindow : public QMainWindow
 {
@@ -23,6 +24,9 @@ private:
     void setupSignals();
     void applyTheme(const QString &themeName);
     void updateStatus(const QString &message);
+    QString currentProjectText() const;
+    void applySearchHighlight(const QString &keyword);
+    void highlightInTable(QTableWidget *table, const QString &keyword);
 
     QWidget *m_centralWidget = nullptr;
     QListWidget *m_projectList = nullptr;
@@ -33,4 +37,6 @@ private:
     QComboBox *m_themeSelector = nullptr;
     QLabel *m_statusLabel = nullptr;
     QLineEdit *m_quickImportInput = nullptr;
+    QLineEdit *m_searchInput = nullptr;
+    QPushButton *m_clearSearchBtn = nullptr;
 };
