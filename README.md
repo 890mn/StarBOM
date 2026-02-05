@@ -9,8 +9,10 @@ StarBOM 是一个基于 Qt 6 Widgets 的桌面原型，用于导入 BOM 并进�
 - 预留导入通道：立创快速导入、XLS/XLSX、OCR。
 - 预留导出通道：CSV、项目报告、核对清单。
 
-## 构建
+## 工具链配置（容器/Ubuntu）
 ```bash
-cmake -S . -B build
-cmake --build build
+./scripts/setup_qt6_toolchain_ubuntu.sh
+./scripts/verify_qt6_toolchain.sh
 ```
+
+更多细节见 `docs/container-toolchain.md`。
