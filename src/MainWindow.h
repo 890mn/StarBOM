@@ -24,9 +24,16 @@ private:
     void setupSignals();
     void applyTheme(const QString &themeName);
     void updateStatus(const QString &message);
+
     QString currentProjectText() const;
     void applySearchHighlight(const QString &keyword);
     void highlightInTable(QTableWidget *table, const QString &keyword);
+
+    bool importSpreadsheetFlow();
+    bool convertSpreadsheetToCsv(const QString &inputPath, QString *outputCsvPath, QString *error) const;
+    bool convertXlsxToCsvWithPython(const QString &inputPath, const QString &outputPath, QString *error) const;
+    bool loadCsvIntoBomTable(const QString &csvPath, QString *error);
+    QStringList parseCsvLine(const QString &line) const;
 
     QWidget *m_centralWidget = nullptr;
     QListWidget *m_projectList = nullptr;

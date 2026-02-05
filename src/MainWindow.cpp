@@ -1,22 +1,34 @@
 #include "MainWindow.h"
 
+#include <QAbstractItemView>
 #include <QApplication>
 #include <QColor>
 #include <QComboBox>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QProcess>
 #include <QPushButton>
+#include <QScreen>
+#include <QScrollArea>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStandardPaths>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QTextStream>
+#include <QStringConverter>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -32,32 +44,45 @@ MainWindow::MainWindow(QWidget *parent)
 void MainWindow::setupUi()
 {
     setWindowTitle(QStringLiteral("StarBOM - BOM 半自动整理工具"));
-    resize(1360, 860);
+
+    const QScreen *screen = QGuiApplication::primaryScreen();
+    const QRect available = screen ? screen->availableGeometry() : QRect(0, 0, 1920, 1080);
+    resize(qRound(available.width() * 0.9), qRound(available.height() * 0.9));
+    setMinimumSize(1280, 820);
 
     m_centralWidget = new QWidget(this);
     auto *mainLayout = new QHBoxLayout(m_centralWidget);
-    mainLayout->setContentsMargins(12, 12, 12, 12);
-    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(10, 10, 10, 10);
+    mainLayout->setSpacing(8);
 
     auto *splitter = new QSplitter(Qt::Horizontal, m_centralWidget);
     splitter->setChildrenCollapsible(false);
 
-    auto *leftPanel = new QFrame(splitter);
+    auto *leftScroll = new QScrollArea(splitter);
+    leftScroll->setWidgetResizable(true);
+    leftScroll->setFrameShape(QFrame::NoFrame);
+
+    auto *leftPanel = new QFrame();
     leftPanel->setObjectName(QStringLiteral("leftPanel"));
+    leftPanel->setMinimumWidth(420);
+    leftPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     auto *leftLayout = new QVBoxLayout(leftPanel);
-    leftLayout->setContentsMargins(12, 12, 12, 12);
-    leftLayout->setSpacing(10);
+    leftLayout->setContentsMargins(14, 14, 14, 14);
+    leftLayout->setSpacing(14);
+    leftScroll->setWidget(leftPanel);
 
     auto *rightPanel = new QFrame(splitter);
     rightPanel->setObjectName(QStringLiteral("rightPanel"));
+    rightPanel->setMinimumWidth(760);
     auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(12, 10, 12, 10);
     rightLayout->setSpacing(8);
 
-    splitter->addWidget(leftPanel);
+    splitter->addWidget(leftScroll);
     splitter->addWidget(rightPanel);
     splitter->setStretchFactor(0, 2);
     splitter->setStretchFactor(1, 8);
+    splitter->setSizes({qRound(width() * 0.22), qRound(width() * 0.78)});
 
     mainLayout->addWidget(splitter);
     setCentralWidget(m_centralWidget);
@@ -73,13 +98,13 @@ void MainWindow::setupLeftPanel()
 
     auto *brandFrame = new QFrame(leftPanel);
     auto *brandLayout = new QGridLayout(brandFrame);
-    brandLayout->setContentsMargins(6, 4, 6, 4);
-    brandLayout->setHorizontalSpacing(6);
-    brandLayout->setVerticalSpacing(1);
+    brandLayout->setContentsMargins(10, 8, 10, 8);
+    brandLayout->setHorizontalSpacing(8);
+    brandLayout->setVerticalSpacing(2);
 
     auto *titleLabel = new QLabel(QStringLiteral("StarBOM"), brandFrame);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
-    auto *versionLabel = new QLabel(QStringLiteral("v0.2.0"), brandFrame);
+    auto *versionLabel = new QLabel(QStringLiteral("v0.3.0"), brandFrame);
     versionLabel->setObjectName(QStringLiteral("versionLabel"));
 
     brandLayout->addWidget(titleLabel, 0, 0, 1, 2, Qt::AlignLeft | Qt::AlignVCenter);
@@ -94,13 +119,18 @@ void MainWindow::setupLeftPanel()
 
     auto *importGroup = new QGroupBox(QStringLiteral("导入"), leftPanel);
     auto *importLayout = new QVBoxLayout(importGroup);
+    importLayout->setSpacing(10);
 
     m_quickImportInput = new QLineEdit(importGroup);
+    m_quickImportInput->setMinimumHeight(38);
     m_quickImportInput->setPlaceholderText(QStringLiteral("立创导出内容关键字 / 链接（后续完善）"));
 
     auto *quickImportBtn = new QPushButton(QStringLiteral("立创导入（规划中）"), importGroup);
     auto *xlsImportBtn = new QPushButton(QStringLiteral("从 XLS/XLSX 导入"), importGroup);
     auto *ocrImportBtn = new QPushButton(QStringLiteral("OCR 图片导入（后续）"), importGroup);
+    quickImportBtn->setMinimumHeight(40);
+    xlsImportBtn->setMinimumHeight(42);
+    ocrImportBtn->setMinimumHeight(40);
 
     importLayout->addWidget(m_quickImportInput);
     importLayout->addWidget(quickImportBtn);
@@ -110,12 +140,15 @@ void MainWindow::setupLeftPanel()
     auto *exportGroup = new QGroupBox(QStringLiteral("导出"), leftPanel);
     auto *exportLayout = new QVBoxLayout(exportGroup);
     auto *csvExportBtn = new QPushButton(QStringLiteral("导出 CSV"), exportGroup);
+    csvExportBtn->setMinimumHeight(42);
     exportLayout->addWidget(csvExportBtn);
 
     auto *projectGroup = new QGroupBox(QStringLiteral("项目"), leftPanel);
     auto *projectLayout = new QVBoxLayout(projectGroup);
+    projectLayout->setSpacing(10);
     m_projectList = new QListWidget(projectGroup);
     m_projectList->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_projectList->setMinimumHeight(220);
     m_projectList->addItems(
         {QStringLiteral("全部项目"), QStringLiteral("电源管理板 RevA"), QStringLiteral("传感器节点 V2"), QStringLiteral("验证样机 Proto-3")});
     m_projectList->setCurrentRow(0);
@@ -124,6 +157,10 @@ void MainWindow::setupLeftPanel()
     auto *newProjectBtn = new QPushButton(QStringLiteral("新建"), projectGroup);
     auto *renameProjectBtn = new QPushButton(QStringLiteral("重命名"), projectGroup);
     auto *clearProjectBtn = new QPushButton(QStringLiteral("取消选中"), projectGroup);
+    newProjectBtn->setMinimumHeight(38);
+    renameProjectBtn->setMinimumHeight(38);
+    clearProjectBtn->setMinimumHeight(38);
+
     projectBtnLayout->addWidget(newProjectBtn);
     projectBtnLayout->addWidget(renameProjectBtn);
     projectBtnLayout->addWidget(clearProjectBtn);
@@ -133,12 +170,16 @@ void MainWindow::setupLeftPanel()
 
     auto *categoryGroup = new QGroupBox(QStringLiteral("分类组"), leftPanel);
     auto *categoryLayout = new QVBoxLayout(categoryGroup);
+    categoryLayout->setSpacing(10);
     m_categoryList = new QListWidget(categoryGroup);
+    m_categoryList->setMinimumHeight(180);
     m_categoryList->addItems({QStringLiteral("电阻电容"), QStringLiteral("芯片 IC"), QStringLiteral("连接器"), QStringLiteral("机械件")});
 
     auto *categoryBtnLayout = new QHBoxLayout();
     auto *newCategoryBtn = new QPushButton(QStringLiteral("新增"), categoryGroup);
     auto *editCategoryBtn = new QPushButton(QStringLiteral("修改"), categoryGroup);
+    newCategoryBtn->setMinimumHeight(38);
+    editCategoryBtn->setMinimumHeight(38);
     categoryBtnLayout->addWidget(newCategoryBtn);
     categoryBtnLayout->addWidget(editCategoryBtn);
 
@@ -147,7 +188,9 @@ void MainWindow::setupLeftPanel()
 
     auto *themeGroup = new QGroupBox(QStringLiteral("主题"), leftPanel);
     auto *themeLayout = new QVBoxLayout(themeGroup);
+    themeLayout->setSpacing(8);
     m_themeSelector = new QComboBox(themeGroup);
+    m_themeSelector->setMinimumHeight(38);
     m_themeSelector->addItems({QStringLiteral("Aurora Triad"), QStringLiteral("Citrus Triad"), QStringLiteral("Slate Triad")});
     themeLayout->addWidget(new QLabel(QStringLiteral("三元色主题："), themeGroup));
     themeLayout->addWidget(m_themeSelector);
@@ -159,19 +202,19 @@ void MainWindow::setupLeftPanel()
     layout->addWidget(projectGroup, 2);
     layout->addWidget(categoryGroup, 2);
     layout->addWidget(themeGroup);
+    layout->addStretch();
 
     connect(quickImportBtn, &QPushButton::clicked, this, [this] {
         const QString key = m_quickImportInput->text().trimmed();
-        const QString project = currentProjectText();
         if (key.isEmpty()) {
             updateStatus(QStringLiteral("立创导入：请先输入关键字或链接。"));
             return;
         }
-        updateStatus(QStringLiteral("立创导入已就绪，目标项目：%1，输入：%2").arg(project, key));
+        updateStatus(QStringLiteral("立创导入已就绪，目标项目：%1，输入：%2").arg(currentProjectText(), key));
     });
 
     connect(xlsImportBtn, &QPushButton::clicked, this, [this] {
-        updateStatus(QStringLiteral("XLS 导入：目标项目 %1（文件选择流程待接入）。").arg(currentProjectText()));
+        importSpreadsheetFlow();
     });
 
     connect(ocrImportBtn, &QPushButton::clicked, this, [this] {
@@ -286,8 +329,10 @@ void MainWindow::setupRightPanel()
     bomViewBtn->setChecked(true);
 
     m_searchInput = new QLineEdit(tabStrip);
+    m_searchInput->setMinimumHeight(38);
     m_searchInput->setPlaceholderText(QStringLiteral("全文搜索（料号 / 位号 / 规格 / 备注）"));
     m_clearSearchBtn = new QPushButton(QStringLiteral("清空"), tabStrip);
+    m_clearSearchBtn->setMinimumHeight(38);
 
     tabLayout->addWidget(bomViewBtn);
     tabLayout->addWidget(inventoryBtn);
@@ -437,7 +482,7 @@ void MainWindow::applyTheme(const QString &themeName)
             background: %1;
             color: %2;
             font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
-            font-size: 13px;
+            font-size: 14px;
         }
         QFrame#leftPanel, QFrame#rightPanel {
             background: white;
@@ -445,32 +490,32 @@ void MainWindow::applyTheme(const QString &themeName)
             border-radius: 10px;
         }
         QLabel#titleLabel {
-            font-size: 31px;
+            font-size: 36px;
             font-weight: 800;
             color: %3;
             letter-spacing: 0.5px;
         }
         QLabel#versionLabel {
             color: #6B7280;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
         }
         QLabel#githubLabel {
             color: #334155;
-            font-size: 13px;
+            font-size: 14px;
             margin-left: 4px;
         }
         QLabel#githubLabel a {
             color: %3;
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
         }
         QGroupBox {
             border: 1px solid #D8E0EA;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-weight: 600;
-            padding-top: 10px;
+            border-radius: 10px;
+            margin-top: 12px;
+            font-weight: 700;
+            padding-top: 12px;
         }
         QGroupBox::title {
             subcontrol-origin: margin;
@@ -482,27 +527,28 @@ void MainWindow::applyTheme(const QString &themeName)
             background: %3;
             color: white;
             border: none;
-            border-radius: 6px;
-            padding: 7px 10px;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 600;
         }
         QPushButton:hover { background: %4; }
         QPushButton:checked { background: %5; }
         QLineEdit, QListWidget, QTableWidget, QComboBox {
             border: 1px solid #CCD6E2;
-            border-radius: 6px;
+            border-radius: 8px;
             background: white;
-            padding: 5px;
+            padding: 6px;
         }
         QListWidget::item:selected {
             background: rgba(46, 91, 255, 0.18);
             border-radius: 4px;
             color: #0F172A;
-            font-weight: 600;
+            font-weight: 700;
         }
         QHeaderView::section {
             background: %3;
             color: white;
-            padding: 5px;
+            padding: 6px;
             border: none;
         }
         QWidget#tabStrip {
@@ -549,10 +595,7 @@ void MainWindow::applySearchHighlight(const QString &keyword)
         for (int row = 0; row < table->rowCount(); ++row) {
             for (int col = 0; col < table->columnCount(); ++col) {
                 const auto *item = table->item(row, col);
-                if (!item) {
-                    continue;
-                }
-                if (item->text().contains(keyword, Qt::CaseInsensitive)) {
+                if (item && item->text().contains(keyword, Qt::CaseInsensitive)) {
                     ++matchCount;
                 }
             }
@@ -579,11 +622,280 @@ void MainWindow::highlightInTable(QTableWidget *table, const QString &keyword)
             const bool matched = enableHighlight && item->text().contains(keyword, Qt::CaseInsensitive);
             item->setBackground(matched ? QColor(QStringLiteral("#FFE58A")) : QColor(Qt::white));
             item->setForeground(QColor(QStringLiteral("#111827")));
-            if (matched) {
-                item->setToolTip(QStringLiteral("命中关键词：%1").arg(keyword));
-            } else {
-                item->setToolTip({});
-            }
+            item->setToolTip(matched ? QStringLiteral("命中关键词：%1").arg(keyword) : QString());
         }
     }
+}
+
+bool MainWindow::importSpreadsheetFlow()
+{
+    const QString path = QFileDialog::getOpenFileName(this,
+                                                      QStringLiteral("选择 BOM 文件"),
+                                                      QString(),
+                                                      QStringLiteral("Spreadsheet Files (*.xlsx *.xls *.csv);;All Files (*.*)"));
+    if (path.isEmpty()) {
+        updateStatus(QStringLiteral("已取消 XLS/XLSX 导入。"));
+        return false;
+    }
+
+    QString csvPath;
+    QString error;
+
+    if (path.endsWith(QStringLiteral(".csv"), Qt::CaseInsensitive)) {
+        csvPath = path;
+    } else if (!convertSpreadsheetToCsv(path, &csvPath, &error)) {
+        updateStatus(QStringLiteral("导入失败：%1").arg(error));
+        return false;
+    }
+
+    if (!loadCsvIntoBomTable(csvPath, &error)) {
+        updateStatus(QStringLiteral("导入失败：%1").arg(error));
+        return false;
+    }
+
+    applySearchHighlight(m_searchInput ? m_searchInput->text().trimmed() : QString());
+    updateStatus(QStringLiteral("已完成导入：%1（项目范围：%2）").arg(QFileInfo(path).fileName(), currentProjectText()));
+    return true;
+}
+
+bool MainWindow::convertSpreadsheetToCsv(const QString &inputPath, QString *outputCsvPath, QString *error) const
+{
+    const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tempDir.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral("无法获取临时目录。");
+        }
+        return false;
+    }
+
+    const QFileInfo info(inputPath);
+    const QString outPath = QDir(tempDir).filePath(QStringLiteral("%1_starbom.csv").arg(info.completeBaseName()));
+
+    if (info.suffix().compare(QStringLiteral("xlsx"), Qt::CaseInsensitive) == 0) {
+        QString pyError;
+        if (convertXlsxToCsvWithPython(inputPath, outPath, &pyError) && QFile::exists(outPath)) {
+            if (outputCsvPath) {
+                *outputCsvPath = outPath;
+            }
+            return true;
+        }
+        if (error && !pyError.isEmpty()) {
+            *error = pyError;
+        }
+    }
+
+    auto runConverter = [&](const QString &program, const QStringList &args) -> bool {
+        QProcess process;
+        process.start(program, args);
+        if (!process.waitForStarted(3000)) {
+            return false;
+        }
+        process.waitForFinished(20000);
+        return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    };
+
+    const bool libreofficeOk = runConverter(QStringLiteral("libreoffice"),
+                                            {QStringLiteral("--headless"),
+                                             QStringLiteral("--convert-to"),
+                                             QStringLiteral("csv"),
+                                             QStringLiteral("--outdir"),
+                                             QFileInfo(outPath).absolutePath(),
+                                             inputPath});
+
+    if (libreofficeOk) {
+        const QString converted = QDir(QFileInfo(outPath).absolutePath())
+                                      .filePath(QStringLiteral("%1.csv").arg(info.completeBaseName()));
+        if (QFile::exists(converted)) {
+            if (outputCsvPath) {
+                *outputCsvPath = converted;
+            }
+            return true;
+        }
+    }
+
+    const bool ssconvertOk = runConverter(QStringLiteral("ssconvert"), {inputPath, outPath});
+    if (ssconvertOk && QFile::exists(outPath)) {
+        if (outputCsvPath) {
+            *outputCsvPath = outPath;
+        }
+        return true;
+    }
+
+    if (error) {
+        *error = QStringLiteral("导入失败：未检测到可用转换器（libreoffice/ssconvert），且内置 xlsx 解析不可用。\n"
+                                "建议：安装 libreoffice 或 ssconvert，或先另存为 CSV。\n文件：%1")
+                     .arg(inputPath);
+    }
+    return false;
+}
+
+bool MainWindow::convertXlsxToCsvWithPython(const QString &inputPath, const QString &outputPath, QString *error) const
+{
+    const QString pythonCode = QStringLiteral(R"PY(
+import csv
+import sys
+import zipfile
+import xml.etree.ElementTree as ET
+
+in_path, out_path = sys.argv[1], sys.argv[2]
+ns = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+
+with zipfile.ZipFile(in_path, 'r') as zf:
+    shared = []
+    if 'xl/sharedStrings.xml' in zf.namelist():
+        root = ET.fromstring(zf.read('xl/sharedStrings.xml'))
+        for si in root.findall('m:si', ns):
+            text = ''.join(t.text or '' for t in si.findall('.//m:t', ns))
+            shared.append(text)
+
+    sheet_name = 'xl/worksheets/sheet1.xml'
+    if sheet_name not in zf.namelist():
+        sheets = [n for n in zf.namelist() if n.startswith('xl/worksheets/sheet') and n.endswith('.xml')]
+        if not sheets:
+            raise RuntimeError('xlsx 中未找到工作表')
+        sheet_name = sorted(sheets)[0]
+
+    root = ET.fromstring(zf.read(sheet_name))
+    rows = []
+    for row in root.findall('.//m:sheetData/m:row', ns):
+        cells = {}
+        max_col = -1
+        for c in row.findall('m:c', ns):
+            ref = c.attrib.get('r', '')
+            letters = ''.join(ch for ch in ref if ch.isalpha())
+            col = 0
+            for ch in letters:
+                col = col * 26 + (ord(ch.upper()) - 64)
+            col = max(col - 1, 0)
+            max_col = max(max_col, col)
+
+            t = c.attrib.get('t', '')
+            v = c.find('m:v', ns)
+            val = ''
+            if t == 'inlineStr':
+                it = c.find('m:is/m:t', ns)
+                if it is not None and it.text:
+                    val = it.text
+            elif t == 's' and v is not None and v.text and v.text.isdigit():
+                idx = int(v.text)
+                if 0 <= idx < len(shared):
+                    val = shared[idx]
+            elif v is not None and v.text:
+                val = v.text
+            cells[col] = val
+
+        if max_col >= 0:
+            line = [''] * (max_col + 1)
+            for k, v in cells.items():
+                line[k] = v
+            rows.append(line)
+
+with open(out_path, 'w', encoding='utf-8', newline='') as fp:
+    writer = csv.writer(fp)
+    writer.writerows(rows)
+)PY");
+
+    QProcess process;
+    process.start(QStringLiteral("python3"), {QStringLiteral("-c"), pythonCode, inputPath, outputPath});
+    if (!process.waitForStarted(3000)) {
+        if (error) {
+            *error = QStringLiteral("未找到 python3，无法使用内置 xlsx 解析。");
+        }
+        return false;
+    }
+
+    process.waitForFinished(20000);
+    const bool ok = process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0 && QFile::exists(outputPath);
+    if (!ok && error) {
+        const QString stderrMsg = QString::fromUtf8(process.readAllStandardError()).trimmed();
+        *error = stderrMsg.isEmpty() ? QStringLiteral("内置 xlsx 解析失败。")
+                                    : QStringLiteral("内置 xlsx 解析失败：%1").arg(stderrMsg);
+    }
+    return ok;
+}
+
+bool MainWindow::loadCsvIntoBomTable(const QString &csvPath, QString *error)
+{
+    QFile file(csvPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (error) {
+            *error = QStringLiteral("无法打开 CSV 文件：%1").arg(csvPath);
+        }
+        return false;
+    }
+
+    QTextStream in(&file);
+    in.setEncoding(QStringConverter::Utf8);
+
+    QList<QStringList> rows;
+    while (!in.atEnd()) {
+        const QString line = in.readLine();
+        if (line.trimmed().isEmpty()) {
+            continue;
+        }
+        rows.append(parseCsvLine(line));
+    }
+
+    if (rows.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral("CSV 为空，没有可导入数据。");
+        }
+        return false;
+    }
+
+    QStringList headers = rows.takeFirst();
+    if (headers.isEmpty()) {
+        headers = {QStringLiteral("项目"),
+                   QStringLiteral("位号"),
+                   QStringLiteral("分类"),
+                   QStringLiteral("料号"),
+                   QStringLiteral("规格"),
+                   QStringLiteral("数量"),
+                   QStringLiteral("供应商"),
+                   QStringLiteral("备注")};
+    }
+
+    const int cols = qMax(headers.size(), 1);
+    m_bomTable->clear();
+    m_bomTable->setColumnCount(cols);
+    m_bomTable->setHorizontalHeaderLabels(headers);
+    m_bomTable->setRowCount(rows.size());
+
+    for (int r = 0; r < rows.size(); ++r) {
+        const QStringList row = rows[r];
+        for (int c = 0; c < cols; ++c) {
+            const QString text = c < row.size() ? row[c].trimmed() : QString();
+            m_bomTable->setItem(r, c, new QTableWidgetItem(text));
+        }
+    }
+
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    return true;
+}
+
+QStringList MainWindow::parseCsvLine(const QString &line) const
+{
+    QStringList result;
+    QString current;
+    bool inQuotes = false;
+
+    for (int i = 0; i < line.size(); ++i) {
+        const QChar ch = line[i];
+        if (ch == '"') {
+            if (inQuotes && i + 1 < line.size() && line[i + 1] == '"') {
+                current.append('"');
+                ++i;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch == ',' && !inQuotes) {
+            result.append(current);
+            current.clear();
+        } else {
+            current.append(ch);
+        }
+    }
+
+    result.append(current);
+    return result;
 }
