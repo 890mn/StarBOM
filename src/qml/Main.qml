@@ -156,22 +156,38 @@ ApplicationWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    TabBar {
-                        id: tabs
+                    Rectangle {
                         Layout.fillWidth: true
-                        background: Rectangle { color: root.subtleColor; radius: 8 }
-                        TabButton { text: "BOM 视图" }
-                        TabButton { text: "差异分析" }
+                        Layout.preferredHeight: 42
+                        radius: 8
+                        color: root.subtleColor
+                        border.color: root.borderColor
+
+                        TabBar {
+                            id: tabs
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            TabButton { text: "BOM 视图" }
+                            TabButton { text: "差异分析" }
+                        }
                     }
 
-                    TextField {
-                        id: globalSearch
+                    Rectangle {
                         Layout.preferredWidth: 300
-                        placeholderText: "全文搜索（料号/位号/规格/备注）"
-                        color: root.textColor
-                        placeholderTextColor: root.mutedTextColor
-                        background: Rectangle { color: root.cardColor; border.color: root.borderColor; radius: 6 }
-                        onTextChanged: app.bomModel.setFilterKeyword(text)
+                        Layout.preferredHeight: 38
+                        radius: 6
+                        color: root.cardColor
+                        border.color: root.borderColor
+
+                        TextField {
+                            id: globalSearch
+                            anchors.fill: parent
+                            anchors.margins: 1
+                            placeholderText: "全文搜索（料号/位号/规格/备注）"
+                            color: root.textColor
+                            placeholderTextColor: root.mutedTextColor
+                            onTextChanged: app.bomModel.setFilterKeyword(text)
+                        }
                     }
                     Button {
                         text: "清空"
