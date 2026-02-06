@@ -21,6 +21,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QScreen>
+#include <QSignalBlocker>
 #include <QScrollArea>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -104,18 +105,32 @@ void MainWindow::setupLeftPanel()
 
     auto *titleLabel = new QLabel(QStringLiteral("StarBOM"), brandFrame);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
-    auto *versionLabel = new QLabel(QStringLiteral("v0.3.0"), brandFrame);
-    versionLabel->setObjectName(QStringLiteral("versionLabel"));
-
-    brandLayout->addWidget(titleLabel, 0, 0, 1, 2, Qt::AlignLeft | Qt::AlignVCenter);
-    brandLayout->addWidget(versionLabel, 1, 1, 1, 1, Qt::AlignRight | Qt::AlignTop);
 
     auto *githubLink = new QLabel(leftPanel);
-    githubLink->setText(QStringLiteral("🐙 <a href='https://github.com/890mn/StarBOM'>890mn</a>"));
+    githubLink->setText(QStringLiteral("<span style='font-size:12px'>🐙</span> <a href='https://github.com/890mn/StarBOM'>890mn</a>"));
     githubLink->setTextFormat(Qt::RichText);
     githubLink->setOpenExternalLinks(true);
     githubLink->setTextInteractionFlags(Qt::TextBrowserInteraction);
     githubLink->setObjectName(QStringLiteral("githubLabel"));
+
+    brandLayout->addWidget(titleLabel, 0, 0, 1, 1, Qt::AlignLeft | Qt::AlignVCenter);
+    brandLayout->addWidget(githubLink, 0, 1, 1, 1, Qt::AlignRight | Qt::AlignVCenter);
+
+    auto *metaFrame = new QFrame(leftPanel);
+    auto *metaLayout = new QHBoxLayout(metaFrame);
+    metaLayout->setContentsMargins(6, 0, 6, 0);
+    metaLayout->setSpacing(6);
+    auto *themeLabel = new QLabel(QStringLiteral("主题："), metaFrame);
+    m_themeToggleBtn = new QPushButton(metaFrame);
+    m_themeToggleBtn->setObjectName(QStringLiteral("themeToggleBtn"));
+    m_themeToggleBtn->setFlat(true);
+    m_themeToggleBtn->setCursor(Qt::PointingHandCursor);
+    auto *versionLabel = new QLabel(QStringLiteral("v0.3.0"), metaFrame);
+    versionLabel->setObjectName(QStringLiteral("versionLabel"));
+    metaLayout->addWidget(themeLabel);
+    metaLayout->addWidget(m_themeToggleBtn, 0, Qt::AlignLeft);
+    metaLayout->addStretch();
+    metaLayout->addWidget(versionLabel, 0, Qt::AlignRight);
 
     auto *importGroup = new QGroupBox(QStringLiteral("导入"), leftPanel);
     auto *importLayout = new QVBoxLayout(importGroup);
@@ -181,23 +196,25 @@ void MainWindow::setupLeftPanel()
     categoryLayout->addWidget(m_categoryList);
     categoryLayout->addLayout(categoryBtnLayout);
 
-    auto *themeGroup = new QGroupBox(QStringLiteral("主题"), leftPanel);
-    auto *themeLayout = new QVBoxLayout(themeGroup);
-    themeLayout->setSpacing(8);
-    m_themeSelector = new QComboBox(themeGroup);
-    m_themeSelector->setMinimumHeight(38);
-    m_themeSelector->addItems({QStringLiteral("Aurora Triad"), QStringLiteral("Citrus Triad"), QStringLiteral("Slate Triad")});
-    themeLayout->addWidget(new QLabel(QStringLiteral("三元色主题："), themeGroup));
-    themeLayout->addWidget(m_themeSelector);
-
     layout->addWidget(brandFrame);
-    layout->addWidget(githubLink);
+    layout->addWidget(metaFrame);
     layout->addWidget(importGroup);
     layout->addWidget(exportGroup);
     layout->addWidget(projectGroup, 2);
     layout->addWidget(categoryGroup, 2);
-    layout->addWidget(themeGroup);
     layout->addStretch();
+
+    m_themeSelector = new QComboBox(this);
+    m_themeSelector->addItems({QStringLiteral("Aurora Triad"), QStringLiteral("Citrus Triad"), QStringLiteral("Slate Triad")});
+    m_themeToggleBtn->setText(m_themeSelector->currentText());
+
+    connect(m_themeToggleBtn, &QPushButton::clicked, this, [this] {
+        if (!m_themeSelector || m_themeSelector->count() == 0) {
+            return;
+        }
+        const int next = (m_themeSelector->currentIndex() + 1) % m_themeSelector->count();
+        m_themeSelector->setCurrentIndex(next);
+    });
 
     connect(quickImportBtn, &QPushButton::clicked, this, [this] {
         importLichuangSpreadsheetFlow();
@@ -335,6 +352,23 @@ void MainWindow::setupRightPanel()
 
     auto *bomPage = new QWidget(m_viewStack);
     auto *bomLayout = new QVBoxLayout(bomPage);
+
+    auto *columnConfigRow = new QWidget(bomPage);
+    auto *columnConfigLayout = new QHBoxLayout(columnConfigRow);
+    columnConfigLayout->setContentsMargins(0, 0, 0, 0);
+    columnConfigLayout->setSpacing(6);
+    columnConfigLayout->addWidget(new QLabel(QStringLiteral("显示列："), columnConfigRow));
+    for (int i = 0; i < 6; ++i) {
+        auto *selector = new QComboBox(columnConfigRow);
+        selector->setMinimumWidth(130);
+        m_bomColumnSelectors.append(selector);
+        columnConfigLayout->addWidget(selector);
+        connect(selector, &QComboBox::currentIndexChanged, this, [this](int) {
+            applyBomColumnSelection();
+        });
+    }
+    columnConfigLayout->addStretch();
+
     m_bomTable = new QTableWidget(6, 8, bomPage);
     m_bomTable->setHorizontalHeaderLabels({QStringLiteral("项目"),
                                            QStringLiteral("位号"),
@@ -344,7 +378,9 @@ void MainWindow::setupRightPanel()
                                            QStringLiteral("数量"),
                                            QStringLiteral("供应商"),
                                            QStringLiteral("备注")});
-    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    m_bomTable->horizontalHeader()->setSectionsClickable(true);
+    m_bomTable->setSortingEnabled(true);
     m_bomTable->verticalHeader()->setVisible(false);
 
     const QList<QStringList> bomRows {
@@ -359,7 +395,11 @@ void MainWindow::setupRightPanel()
             m_bomTable->setItem(i, j, new QTableWidgetItem(bomRows[i][j]));
         }
     }
+    bomLayout->addWidget(columnConfigRow);
     bomLayout->addWidget(m_bomTable);
+    captureBomSourceFromCurrentTable();
+    refreshBomColumnSelectors();
+    applyBomColumnSelection();
 
     auto *inventoryPage = new QWidget(m_viewStack);
     auto *inventoryLayout = new QVBoxLayout(inventoryPage);
@@ -443,6 +483,9 @@ void MainWindow::setupSignals()
 {
     connect(m_themeSelector, &QComboBox::currentTextChanged, this, [this](const QString &name) {
         applyTheme(name);
+        if (m_themeToggleBtn) {
+            m_themeToggleBtn->setText(name);
+        }
         updateStatus(QStringLiteral("主题已切换：%1").arg(name));
     });
 }
@@ -523,6 +566,18 @@ void MainWindow::applyTheme(const QString &themeName)
         }
         QPushButton:hover { background: %4; }
         QPushButton:checked { background: %5; }
+        QPushButton#themeToggleBtn {
+            background: transparent;
+            color: %3;
+            padding: 0;
+            border: none;
+            text-decoration: underline;
+            font-weight: 700;
+        }
+        QPushButton#themeToggleBtn:hover {
+            background: transparent;
+            color: %4;
+        }
         QLineEdit, QListWidget, QTableWidget, QComboBox {
             border: 1px solid #CCD6E2;
             border-radius: 8px;
@@ -553,6 +608,90 @@ void MainWindow::applyTheme(const QString &themeName)
                               .arg(panel, text, primary, secondary, accent, QStringLiteral("%1, %2, %3").arg(QColor(primary).red()).arg(QColor(primary).green()).arg(QColor(primary).blue()));
 
     qApp->setStyleSheet(style);
+}
+
+void MainWindow::captureBomSourceFromCurrentTable()
+{
+    m_bomSourceHeaders.clear();
+    m_bomSourceRows.clear();
+    if (!m_bomTable) {
+        return;
+    }
+
+    for (int c = 0; c < m_bomTable->columnCount(); ++c) {
+        auto *item = m_bomTable->horizontalHeaderItem(c);
+        m_bomSourceHeaders.append(item ? item->text() : QStringLiteral("列%1").arg(c + 1));
+    }
+
+    for (int r = 0; r < m_bomTable->rowCount(); ++r) {
+        QStringList row;
+        for (int c = 0; c < m_bomTable->columnCount(); ++c) {
+            auto *item = m_bomTable->item(r, c);
+            row.append(item ? item->text() : QString());
+        }
+        m_bomSourceRows.append(row);
+    }
+}
+
+void MainWindow::refreshBomColumnSelectors()
+{
+    if (m_bomColumnSelectors.isEmpty()) {
+        return;
+    }
+
+    for (int i = 0; i < m_bomColumnSelectors.size(); ++i) {
+        auto *selector = m_bomColumnSelectors[i];
+        if (!selector) {
+            continue;
+        }
+        const QSignalBlocker blocker(selector);
+        const QString current = selector->currentText();
+        selector->clear();
+        selector->addItems(m_bomSourceHeaders);
+        int index = selector->findText(current, Qt::MatchExactly);
+        if (index < 0) {
+            index = qMin(i, selector->count() - 1);
+        }
+        selector->setCurrentIndex(qMax(index, 0));
+    }
+}
+
+void MainWindow::applyBomColumnSelection()
+{
+    if (!m_bomTable || m_bomSourceHeaders.isEmpty() || m_bomColumnSelectors.isEmpty()) {
+        return;
+    }
+
+    const int visibleCols = m_bomColumnSelectors.size();
+    const int rowCount = m_bomSourceRows.size();
+    m_bomTable->setSortingEnabled(false);
+    m_bomTable->clear();
+    m_bomTable->setColumnCount(visibleCols);
+    m_bomTable->setRowCount(rowCount);
+
+    QStringList viewHeaders;
+    QList<int> sourceIndexes;
+    for (int i = 0; i < visibleCols; ++i) {
+        auto *selector = m_bomColumnSelectors[i];
+        const QString header = selector ? selector->currentText() : QString();
+        viewHeaders.append(header);
+        sourceIndexes.append(m_bomSourceHeaders.indexOf(header));
+    }
+    m_bomTable->setHorizontalHeaderLabels(viewHeaders);
+
+    for (int r = 0; r < rowCount; ++r) {
+        for (int c = 0; c < sourceIndexes.size(); ++c) {
+            const int sourceIndex = sourceIndexes[c];
+            QString text;
+            if (sourceIndex >= 0 && sourceIndex < m_bomSourceRows[r].size()) {
+                text = m_bomSourceRows[r][sourceIndex];
+            }
+            m_bomTable->setItem(r, c, new QTableWidgetItem(text));
+        }
+    }
+
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    m_bomTable->setSortingEnabled(true);
 }
 
 void MainWindow::updateStatus(const QString &message)
@@ -1046,7 +1185,10 @@ bool MainWindow::loadCsvIntoBomTable(const QString &csvPath, QString *error)
         }
     }
 
-    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    captureBomSourceFromCurrentTable();
+    refreshBomColumnSelectors();
+    applyBomColumnSelection();
     return true;
 }
 
@@ -1141,7 +1283,10 @@ bool MainWindow::loadLichuangCsvIntoBomTable(const QString &csvPath, const QStri
         }
     }
 
-    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    captureBomSourceFromCurrentTable();
+    refreshBomColumnSelectors();
+    applyBomColumnSelection();
     return true;
 }
 

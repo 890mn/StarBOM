@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QList>
+#include <QStringList>
 
 class QListWidget;
 class QStackedWidget;
@@ -28,6 +30,9 @@ private:
     QString currentProjectText() const;
     void applySearchHighlight(const QString &keyword);
     void highlightInTable(QTableWidget *table, const QString &keyword);
+    void captureBomSourceFromCurrentTable();
+    void refreshBomColumnSelectors();
+    void applyBomColumnSelection();
 
     bool importSpreadsheetFlow();
     bool importLichuangSpreadsheetFlow();
@@ -49,4 +54,8 @@ private:
     QLabel *m_statusLabel = nullptr;
     QLineEdit *m_searchInput = nullptr;
     QPushButton *m_clearSearchBtn = nullptr;
+    QPushButton *m_themeToggleBtn = nullptr;
+    QList<QComboBox *> m_bomColumnSelectors;
+    QStringList m_bomSourceHeaders;
+    QList<QStringList> m_bomSourceRows;
 };
