@@ -23,7 +23,7 @@ ApplicationWindow {
     property color textColor: darkTheme ? "#E5E7EB" : "#0F172A"
     property color mutedTextColor: darkTheme ? "#9CA3AF" : "#64748B"
     property color primaryColor: darkTheme ? "#60A5FA" : "#2E5BFF"
-    property color subtleColor: darkTheme ? "#0F172A" : "#F8FAFC"
+    property color subtleColor: darkTheme ? "#273449" : "#F8FAFC"
 
     color: bgColor
 
@@ -168,6 +168,9 @@ ApplicationWindow {
                         id: globalSearch
                         Layout.preferredWidth: 300
                         placeholderText: "全文搜索（料号/位号/规格/备注）"
+                        color: root.textColor
+                        placeholderTextColor: root.mutedTextColor
+                        background: Rectangle { color: root.cardColor; border.color: root.borderColor; radius: 6 }
                         onTextChanged: app.bomModel.setFilterKeyword(text)
                     }
                     Button {

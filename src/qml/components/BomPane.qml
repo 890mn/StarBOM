@@ -10,27 +10,36 @@ Item {
     property var columnWidths: [180, 180, 180, 180, 180, 180]
     property var slotAscending: [true, true, true, true, true, true]
 
-    function ensureColumnWidthSize() {
+    function ensureColumnState() {
         while (columnWidths.length < 6) columnWidths.push(180)
         while (slotAscending.length < 6) slotAscending.push(true)
     }
 
     function slotWidth(slot) {
-        ensureColumnWidthSize()
+        ensureColumnState()
         return columnWidths[slot]
     }
 
     function setSlotWidth(slot, widthValue) {
-        ensureColumnWidthSize()
-        columnWidths[slot] = Math.max(110, Math.min(420, widthValue))
+        ensureColumnState()
+        columnWidths[slot] = Math.max(120, Math.min(440, widthValue))
         tableView.forceLayout()
-        selectorTable.forceLayout()
+        header.forceLayout()
     }
 
     function toggleSort(slot) {
-        ensureColumnWidthSize()
+        ensureColumnState()
         app.bomModel.sortByVisibleColumn(slot, slotAscending[slot])
         slotAscending[slot] = !slotAscending[slot]
+    }
+
+    function cycleHeader(slot) {
+        const headers = app.bomModel.availableHeaders()
+        if (!headers || headers.length === 0) return
+        const current = app.bomModel.visibleHeaderAt(slot)
+        const idx = headers.indexOf(current)
+        const nextIdx = idx < 0 ? 0 : (idx + 1) % headers.length
+        app.bomModel.setVisibleHeaderAt(slot, headers[nextIdx])
     }
 
     Rectangle {
@@ -49,27 +58,10 @@ Item {
                 Layout.fillWidth: true
                 syncView: tableView
                 clip: true
-                delegate: Rectangle {
-                    implicitHeight: 34
-                    color: themeColors.primary
-                    border.color: themeColors.card
-                    Text { anchors.centerIn: parent; color: "white"; text: display; font.bold: true }
-                }
-            }
-
-            // 第一行配置：左下拉切列，右按钮切排序，右边缘拖拉调宽
-            TableView {
-                id: selectorTable
-                Layout.fillWidth: true
-                implicitHeight: 42
-                interactive: false
-                model: 1
-                columnSpacing: 1
-                rowSpacing: 0
                 columnWidthProvider: function(column) { return root.slotWidth(column) }
 
                 delegate: Rectangle {
-                    id: cfgCell
+                    id: headerCell
                     implicitHeight: 40
                     color: themeColors.subtle
                     border.color: themeColors.border
@@ -79,34 +71,29 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 4
-                        anchors.rightMargin: 8
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 10
                         spacing: 4
 
-                        ComboBox {
-                            id: selector
+                        ToolButton {
+                            text: "⇄"
+                            font.pixelSize: 14
+                            onClicked: root.cycleHeader(column)
+                        }
+
+                        Label {
                             Layout.fillWidth: true
-                            model: root.app.bomModel.availableHeaders()
-
-                            function syncIndex() {
-                                const currentHeader = root.app.bomModel.visibleHeaderAt(column)
-                                const idx = model.indexOf(currentHeader)
-                                currentIndex = idx >= 0 ? idx : 0
-                            }
-
-                            Component.onCompleted: syncIndex()
-                            onActivated: function(_activatedIndex) {
-                                root.app.bomModel.setVisibleHeaderAt(column, currentText)
-                            }
-
-                            Connections {
-                                target: root.app.bomModel
-                                function onModelReset() { selector.syncIndex() }
-                            }
+                            text: display
+                            color: themeColors.text
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            font.bold: true
                         }
 
                         ToolButton {
                             text: root.slotAscending[column] ? "↑" : "↓"
+                            font.pixelSize: 14
                             onClicked: root.toggleSort(column)
                         }
                     }
@@ -123,13 +110,13 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.SizeHorCursor
                             onPressed: function(mouse) {
-                                cfgCell.dragStartX = mouse.x
-                                cfgCell.dragStartWidth = root.slotWidth(column)
+                                headerCell.dragStartX = mouse.x
+                                headerCell.dragStartWidth = root.slotWidth(column)
                             }
                             onPositionChanged: function(mouse) {
                                 if (pressed) {
-                                    const delta = mouse.x - cfgCell.dragStartX
-                                    root.setSlotWidth(column, cfgCell.dragStartWidth + delta)
+                                    const delta = mouse.x - headerCell.dragStartX
+                                    root.setSlotWidth(column, headerCell.dragStartWidth + delta)
                                 }
                             }
                         }
