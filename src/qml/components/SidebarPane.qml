@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     required property var app
+    required property var palette
     signal requestImport()
     signal requestNewProject()
     signal requestRenameProject(int index, string currentName)
@@ -13,14 +14,8 @@ Rectangle {
     property string selectedCategoryName: ""
 
     radius: 12
-    color: "white"
-    border.color: "#D8E0EA"
-
-    function primaryColor() {
-        if (app.theme.currentThemeName === "Citrus Triad") return "#306B34"
-        if (app.theme.currentThemeName === "Slate Triad") return "#384E77"
-        return "#2E5BFF"
-    }
+    color: palette.card
+    border.color: palette.border
 
     ColumnLayout {
         anchors.fill: parent
@@ -29,7 +24,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "StarBOM"; font.pixelSize: 34; font.bold: true; color: root.primaryColor() }
+            Label { text: "StarBOM"; font.pixelSize: 34; font.bold: true; color: palette.primary }
             Item { Layout.fillWidth: true }
             Text {
                 text: "<span style='font-size:12px'>🐙</span> <a href='https://github.com/890mn/StarBOM'>890mn</a>"
@@ -40,10 +35,10 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "主题：" }
+            Label { text: "主题："; color: palette.text }
             Text {
                 text: app.theme.currentThemeName
-                color: root.primaryColor()
+                color: palette.primary
                 font.bold: true
                 font.underline: true
                 MouseArea {
@@ -53,7 +48,7 @@ Rectangle {
                 }
             }
             Item { Layout.fillWidth: true }
-            Label { text: "v0.3.0"; color: "#64748B"; font.pixelSize: 12 }
+            Label { text: "v0.3.0"; color: palette.muted; font.pixelSize: 12 }
         }
 
         GroupBox {
@@ -103,7 +98,7 @@ Rectangle {
                                 width: app.projects.selectedProject === parent.text ? 5 : 2
                                 height: parent.height * 0.72
                                 radius: 2
-                                color: app.projects.selectedProject === parent.text ? root.primaryColor() : "transparent"
+                                color: app.projects.selectedProject === parent.text ? palette.primary : "transparent"
                             }
                         }
                         onClicked: app.projects.selectedProject = text

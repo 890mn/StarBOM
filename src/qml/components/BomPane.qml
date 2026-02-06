@@ -5,14 +5,14 @@ import QtQuick.Layouts
 Item {
     id: root
     required property var app
-    property bool ascendingSort: true
-    property int sortSlot: 0
+    required property var palette
+
     property var columnWidths: [180, 180, 180, 180, 180, 180]
+    property var slotAscending: [true, true, true, true, true, true]
 
     function ensureColumnWidthSize() {
-        while (columnWidths.length < 6) {
-            columnWidths.push(180)
-        }
+        while (columnWidths.length < 6) columnWidths.push(180)
+        while (slotAscending.length < 6) slotAscending.push(true)
     }
 
     function slotWidth(slot) {
@@ -20,160 +20,145 @@ Item {
         return columnWidths[slot]
     }
 
-    function adjustSlotWidth(slot, delta) {
+    function setSlotWidth(slot, widthValue) {
         ensureColumnWidthSize()
-        const next = Math.max(100, Math.min(360, columnWidths[slot] + delta))
-        columnWidths[slot] = next
+        columnWidths[slot] = Math.max(110, Math.min(420, widthValue))
         tableView.forceLayout()
         selectorTable.forceLayout()
     }
 
-    ColumnLayout {
+    function toggleSort(slot) {
+        ensureColumnWidthSize()
+        app.bomModel.sortByVisibleColumn(slot, slotAscending[slot])
+        slotAscending[slot] = !slotAscending[slot]
+    }
+
+    Rectangle {
         anchors.fill: parent
-        spacing: 8
+        radius: 8
+        color: palette.card
+        border.color: palette.border
 
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 44
-            radius: 8
-            color: "#F8FAFC"
-            border.color: "#E2E8F0"
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 6
+            spacing: 1
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 6
-                spacing: 6
-
-                TextField {
-                    id: searchField
-                    Layout.preferredWidth: 300
-                    placeholderText: "全文搜索（料号/位号/规格/备注）"
-                    onTextChanged: root.app.bomModel.setFilterKeyword(text)
+            HorizontalHeaderView {
+                id: header
+                Layout.fillWidth: true
+                syncView: tableView
+                clip: true
+                delegate: Rectangle {
+                    implicitHeight: 34
+                    color: palette.primary
+                    border.color: palette.card
+                    Text { anchors.centerIn: parent; color: "white"; text: display; font.bold: true }
                 }
-                Button {
-                    text: "清空"
-                    onClicked: {
-                        searchField.clear()
-                        root.app.bomModel.setFilterKeyword("")
+            }
+
+            // 第一行配置：左下拉切列，右按钮切排序，右边缘拖拉调宽
+            TableView {
+                id: selectorTable
+                Layout.fillWidth: true
+                implicitHeight: 42
+                interactive: false
+                model: 1
+                columnSpacing: 1
+                rowSpacing: 0
+                columnWidthProvider: function(column) { return root.slotWidth(column) }
+
+                delegate: Rectangle {
+                    id: cfgCell
+                    implicitHeight: 40
+                    color: palette.subtle
+                    border.color: palette.border
+
+                    property real dragStartX: 0
+                    property real dragStartWidth: 0
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 4
+                        anchors.rightMargin: 8
+                        spacing: 4
+
+                        ComboBox {
+                            id: selector
+                            Layout.fillWidth: true
+                            model: root.app.bomModel.availableHeaders()
+
+                            function syncIndex() {
+                                const currentHeader = root.app.bomModel.visibleHeaderAt(column)
+                                const idx = model.indexOf(currentHeader)
+                                currentIndex = idx >= 0 ? idx : 0
+                            }
+
+                            Component.onCompleted: syncIndex()
+                            onActivated: function(_activatedIndex) {
+                                root.app.bomModel.setVisibleHeaderAt(column, currentText)
+                            }
+
+                            Connections {
+                                target: root.app.bomModel
+                                function onModelReset() { selector.syncIndex() }
+                            }
+                        }
+
+                        ToolButton {
+                            text: root.slotAscending[column] ? "↑" : "↓"
+                            onClicked: root.toggleSort(column)
+                        }
                     }
-                }
-                Item { Layout.fillWidth: true }
-                Label { text: "排序列：" }
-                ComboBox {
-                    id: sortByCombo
-                    Layout.preferredWidth: 180
-                    model: root.app.bomModel.availableHeaders()
-                    onActivated: function(activatedIndex) {
-                        root.sortSlot = activatedIndex
-                    }
-                }
-                Button {
-                    text: root.ascendingSort ? "升序" : "降序"
-                    onClicked: {
-                        root.app.bomModel.sortByVisibleColumn(root.sortSlot, root.ascendingSort)
-                        root.ascendingSort = !root.ascendingSort
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        width: 8
+                        color: "transparent"
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.SizeHorCursor
+                            onPressed: function(mouse) {
+                                cfgCell.dragStartX = mouse.x
+                                cfgCell.dragStartWidth = root.slotWidth(column)
+                            }
+                            onPositionChanged: function(mouse) {
+                                if (pressed) {
+                                    const delta = mouse.x - cfgCell.dragStartX
+                                    root.setSlotWidth(column, cfgCell.dragStartWidth + delta)
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: 8
-            color: "white"
-            border.color: "#E2E8F0"
+            TableView {
+                id: tableView
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: root.app.bomModel
+                boundsBehavior: Flickable.StopAtBounds
+                rowSpacing: 1
+                columnSpacing: 1
+                columnWidthProvider: function(column) { return root.slotWidth(column) }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 6
-                spacing: 1
-
-                HorizontalHeaderView {
-                    id: header
-                    Layout.fillWidth: true
-                    syncView: tableView
-                    clip: true
-                    delegate: Rectangle {
-                        implicitHeight: 34
-                        color: "#2E5BFF"
-                        border.color: "#FFFFFF"
-                        Text { anchors.centerIn: parent; color: "white"; text: display; font.bold: true }
-                    }
-                }
-
-                // 表格第一行：列显示选择 + 单列宽度调整 + 右侧排序
-                TableView {
-                    id: selectorTable
-                    Layout.fillWidth: true
-                    implicitHeight: 42
-                    interactive: false
-                    model: 1
-                    columnSpacing: 1
-                    rowSpacing: 0
-                    columnWidthProvider: function(column) { return root.slotWidth(column) }
-
-                    delegate: Rectangle {
-                        implicitHeight: 40
-                        color: "#F8FAFC"
-                        border.color: "#E2E8F0"
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 3
-                            spacing: 2
-
-                            ComboBox {
-                                id: selector
-                                Layout.fillWidth: true
-                                model: root.app.bomModel.availableHeaders()
-
-                                function syncIndex() {
-                                    const currentHeader = root.app.bomModel.visibleHeaderAt(column)
-                                    const idx = model.indexOf(currentHeader)
-                                    currentIndex = idx >= 0 ? idx : 0
-                                }
-
-                                Component.onCompleted: syncIndex()
-                                onActivated: function(_activatedIndex) {
-                                    root.app.bomModel.setVisibleHeaderAt(column, currentText)
-                                }
-
-                                Connections {
-                                    target: root.app.bomModel
-                                    function onModelReset() { selector.syncIndex() }
-                                }
-                            }
-
-                            ToolButton { text: "-"; onClicked: root.adjustSlotWidth(column, -12) }
-                            ToolButton { text: "+"; onClicked: root.adjustSlotWidth(column, 12) }
-                        }
-                    }
-                }
-
-                TableView {
-                    id: tableView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: root.app.bomModel
-                    boundsBehavior: Flickable.StopAtBounds
-                    rowSpacing: 1
-                    columnSpacing: 1
-                    columnWidthProvider: function(column) { return root.slotWidth(column) }
-
-                    delegate: Rectangle {
-                        implicitHeight: 34
-                        color: row % 2 === 0 ? "#FFFFFF" : "#F8FAFC"
-                        border.color: "#E5E7EB"
-                        Text {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            verticalAlignment: Text.AlignVCenter
-                            elide: Text.ElideRight
-                            text: display === undefined ? "" : display
-                            color: "#0F172A"
-                        }
+                delegate: Rectangle {
+                    implicitHeight: 34
+                    color: row % 2 === 0 ? palette.card : palette.subtle
+                    border.color: palette.border
+                    Text {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        text: display === undefined ? "" : display
+                        color: palette.text
                     }
                 }
             }

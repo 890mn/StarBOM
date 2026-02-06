@@ -10,12 +10,22 @@ ApplicationWindow {
     height: 920
     visible: true
     title: "StarBOM"
-    color: "#F5F7FB"
 
     property var appCtx: app
     property string activeProjectForImport: ""
     property int renameProjectIndex: -1
     property int renameCategoryIndex: -1
+
+    property bool darkTheme: app.theme.currentThemeName === "Dark"
+    property color bgColor: darkTheme ? "#111827" : "#F5F7FB"
+    property color cardColor: darkTheme ? "#1F2937" : "#FFFFFF"
+    property color borderColor: darkTheme ? "#374151" : "#D8E0EA"
+    property color textColor: darkTheme ? "#E5E7EB" : "#0F172A"
+    property color mutedTextColor: darkTheme ? "#9CA3AF" : "#64748B"
+    property color primaryColor: darkTheme ? "#60A5FA" : "#2E5BFF"
+    property color subtleColor: darkTheme ? "#0F172A" : "#F8FAFC"
+
+    color: bgColor
 
     Dialog {
         id: projectForImportDialog
@@ -89,6 +99,14 @@ ApplicationWindow {
             Layout.preferredWidth: 340
             Layout.fillHeight: true
             app: root.appCtx
+            palette: {
+                "card": root.cardColor,
+                "border": root.borderColor,
+                "text": root.textColor,
+                "muted": root.mutedTextColor,
+                "primary": root.primaryColor,
+                "subtle": root.subtleColor
+            }
             onRequestImport: projectForImportDialog.open()
             onRequestNewProject: {
                 inputDialog.title = "新建项目"
@@ -128,20 +146,37 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: 12
-            color: "white"
-            border.color: "#D8E0EA"
+            color: root.cardColor
+            border.color: root.borderColor
 
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 8
 
-                TabBar {
-                    id: tabs
+                RowLayout {
                     Layout.fillWidth: true
-                    TabButton { text: "BOM 视图" }
-                    TabButton { text: "库存视图" }
-                    TabButton { text: "差异分析" }
+                    TabBar {
+                        id: tabs
+                        Layout.fillWidth: true
+                        background: Rectangle { color: root.subtleColor; radius: 8 }
+                        TabButton { text: "BOM 视图" }
+                        TabButton { text: "差异分析" }
+                    }
+
+                    TextField {
+                        id: globalSearch
+                        Layout.preferredWidth: 300
+                        placeholderText: "全文搜索（料号/位号/规格/备注）"
+                        onTextChanged: app.bomModel.setFilterKeyword(text)
+                    }
+                    Button {
+                        text: "清空"
+                        onClicked: {
+                            globalSearch.clear()
+                            app.bomModel.setFilterKeyword("")
+                        }
+                    }
                 }
 
                 StackLayout {
@@ -149,31 +184,28 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     currentIndex: tabs.currentIndex
 
-                    BomPane { app: root.appCtx }
-
-                    Rectangle {
-                        color: "#FFFFFF"
-                        border.color: "#E2E8F0"
-                        radius: 8
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
-                            Label { text: "库存视图"; font.bold: true }
-                            Label { text: "现存、需求、缺口与建议将与导入数据联动（待接入）"; color: "#475569" }
+                    BomPane {
+                        app: root.appCtx
+                        palette: {
+                            "card": root.cardColor,
+                            "border": root.borderColor,
+                            "text": root.textColor,
+                            "muted": root.mutedTextColor,
+                            "primary": root.primaryColor,
+                            "subtle": root.subtleColor
                         }
                     }
 
                     Rectangle {
-                        color: "#FFFFFF"
-                        border.color: "#E2E8F0"
+                        color: root.cardColor
+                        border.color: root.borderColor
                         radius: 8
                         ColumnLayout {
                             anchors.fill: parent
                             anchors.margins: 12
                             spacing: 8
-                            Label { text: "差异分析"; font.bold: true }
-                            Label { text: "后续接入版本对比、替代料推荐、成本变化趋势。"; color: "#475569" }
+                            Label { text: "差异分析"; font.bold: true; color: root.textColor }
+                            Label { text: "后续接入版本对比、替代料推荐、成本变化趋势。"; color: root.mutedTextColor }
                         }
                     }
                 }
@@ -182,14 +214,14 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     height: 34
                     radius: 6
-                    color: "#F8FAFC"
-                    border.color: "#E2E8F0"
+                    color: root.subtleColor
+                    border.color: root.borderColor
                     Label {
                         anchors.fill: parent
                         anchors.leftMargin: 10
                         verticalAlignment: Text.AlignVCenter
                         text: app.status
-                        color: "#334155"
+                        color: root.textColor
                     }
                 }
             }

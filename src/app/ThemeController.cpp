@@ -2,7 +2,7 @@
 
 ThemeController::ThemeController(QObject *parent)
     : QObject(parent)
-    , m_themes({QStringLiteral("Aurora Triad"), QStringLiteral("Citrus Triad"), QStringLiteral("Slate Triad")})
+    , m_themes({QStringLiteral("Light"), QStringLiteral("Dark")})
 {
 }
 
