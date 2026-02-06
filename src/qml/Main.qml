@@ -99,7 +99,7 @@ ApplicationWindow {
             Layout.preferredWidth: 340
             Layout.fillHeight: true
             app: root.appCtx
-            palette: {
+            themeColors: {
                 "card": root.cardColor,
                 "border": root.borderColor,
                 "text": root.textColor,
@@ -186,7 +186,7 @@ ApplicationWindow {
 
                     BomPane {
                         app: root.appCtx
-                        palette: {
+                        themeColors: {
                             "card": root.cardColor,
                             "border": root.borderColor,
                             "text": root.textColor,

@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Item {
     id: root
     required property var app
-    required property var palette
+    required property var themeColors
 
     property var columnWidths: [180, 180, 180, 180, 180, 180]
     property var slotAscending: [true, true, true, true, true, true]
@@ -36,8 +36,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 8
-        color: palette.card
-        border.color: palette.border
+        color: themeColors.card
+        border.color: themeColors.border
 
         ColumnLayout {
             anchors.fill: parent
@@ -51,8 +51,8 @@ Item {
                 clip: true
                 delegate: Rectangle {
                     implicitHeight: 34
-                    color: palette.primary
-                    border.color: palette.card
+                    color: themeColors.primary
+                    border.color: themeColors.card
                     Text { anchors.centerIn: parent; color: "white"; text: display; font.bold: true }
                 }
             }
@@ -71,8 +71,8 @@ Item {
                 delegate: Rectangle {
                     id: cfgCell
                     implicitHeight: 40
-                    color: palette.subtle
-                    border.color: palette.border
+                    color: themeColors.subtle
+                    border.color: themeColors.border
 
                     property real dragStartX: 0
                     property real dragStartWidth: 0
@@ -150,15 +150,15 @@ Item {
 
                 delegate: Rectangle {
                     implicitHeight: 34
-                    color: row % 2 === 0 ? palette.card : palette.subtle
-                    border.color: palette.border
+                    color: row % 2 === 0 ? themeColors.card : themeColors.subtle
+                    border.color: themeColors.border
                     Text {
                         anchors.fill: parent
                         anchors.margins: 8
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                         text: display === undefined ? "" : display
-                        color: palette.text
+                        color: themeColors.text
                     }
                 }
             }
