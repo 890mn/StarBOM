@@ -22,12 +22,6 @@ Rectangle {
         return "#2E5BFF"
     }
 
-    function secondaryColor() {
-        if (app.theme.currentThemeName === "Citrus Triad") return "#FF7F11"
-        if (app.theme.currentThemeName === "Slate Triad") return "#D66A6A"
-        return "#FF7A00"
-    }
-
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
@@ -47,11 +41,16 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             Label { text: "主题：" }
-            Button {
+            Text {
                 text: app.theme.currentThemeName
-                flat: true
-                onClicked: app.cycleTheme()
-                contentItem: Text { text: parent.text; color: root.primaryColor(); font.underline: true; font.bold: true }
+                color: root.primaryColor()
+                font.bold: true
+                font.underline: true
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: app.cycleTheme()
+                }
             }
             Item { Layout.fillWidth: true }
             Label { text: "v0.3.0"; color: "#64748B"; font.pixelSize: 12 }
@@ -94,20 +93,20 @@ Rectangle {
                     currentIndex: Math.max(0, app.projects.projectNames(true).indexOf(app.projects.selectedProject))
                     delegate: ItemDelegate {
                         width: ListView.view.width
-                        text: modelData
+                        text: (model.display !== undefined) ? model.display : ""
                         leftPadding: 14
                         background: Rectangle {
-                            color: app.projects.selectedProject === modelData ? Qt.rgba(46/255, 91/255, 1, 0.12) : "transparent"
+                            color: app.projects.selectedProject === parent.text ? Qt.rgba(46/255, 91/255, 1, 0.12) : "transparent"
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                width: app.projects.selectedProject === modelData ? 5 : 2
+                                width: app.projects.selectedProject === parent.text ? 5 : 2
                                 height: parent.height * 0.72
                                 radius: 2
-                                color: app.projects.selectedProject === modelData ? root.primaryColor() : "transparent"
+                                color: app.projects.selectedProject === parent.text ? root.primaryColor() : "transparent"
                             }
                         }
-                        onClicked: app.projects.selectedProject = modelData
+                        onClicked: app.projects.selectedProject = text
                     }
                 }
                 RowLayout {
@@ -137,8 +136,11 @@ Rectangle {
                     model: app.categories.model
                     delegate: ItemDelegate {
                         width: ListView.view.width
-                        text: modelData
-                        onClicked: { categoryList.currentIndex = index; root.selectedCategoryName = modelData }
+                        text: (model.display !== undefined) ? model.display : ""
+                        onClicked: {
+                            categoryList.currentIndex = index
+                            root.selectedCategoryName = text
+                        }
                     }
                 }
                 RowLayout {
