@@ -30,10 +30,13 @@ private:
     void highlightInTable(QTableWidget *table, const QString &keyword);
 
     bool importSpreadsheetFlow();
+    bool importLichuangSpreadsheetFlow();
+    bool ensureProjectForImport(QString *projectName);
     bool convertSpreadsheetToCsv(const QString &inputPath, QString *outputCsvPath, QString *error) const;
     bool convertXlsxToCsvWithPython(const QString &inputPath, const QString &outputPath, QString *error) const;
     bool convertExcelToCsvWithPython(const QString &inputPath, const QString &outputPath, QString *error) const;
     bool loadCsvIntoBomTable(const QString &csvPath, QString *error);
+    bool loadLichuangCsvIntoBomTable(const QString &csvPath, const QString &projectName, QString *error);
     QStringList parseCsvLine(const QString &line) const;
 
     QWidget *m_centralWidget = nullptr;

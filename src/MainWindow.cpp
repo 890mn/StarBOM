@@ -121,7 +121,7 @@ void MainWindow::setupLeftPanel()
     auto *importLayout = new QVBoxLayout(importGroup);
     importLayout->setSpacing(10);
 
-    auto *quickImportBtn = new QPushButton(QStringLiteral("立创导入（开发中）"), importGroup);
+    auto *quickImportBtn = new QPushButton(QStringLiteral("立创导入（XLS）"), importGroup);
     auto *xlsImportBtn = new QPushButton(QStringLiteral("从 XLS/XLSX 导入"), importGroup);
     auto *ocrImportBtn = new QPushButton(QStringLiteral("OCR 图片导入（后续）"), importGroup);
     quickImportBtn->setMinimumHeight(40);
@@ -200,11 +200,11 @@ void MainWindow::setupLeftPanel()
     layout->addStretch();
 
     connect(quickImportBtn, &QPushButton::clicked, this, [this] {
-        updateStatus(QStringLiteral("立创导入入口保留中：目标项目 %1（即将接入自动抓取流程）。").arg(currentProjectText()));
+        importLichuangSpreadsheetFlow();
     });
 
     connect(xlsImportBtn, &QPushButton::clicked, this, [this] {
-        importSpreadsheetFlow();
+        importLichuangSpreadsheetFlow();
     });
 
     connect(ocrImportBtn, &QPushButton::clicked, this, [this] {
@@ -622,6 +622,108 @@ void MainWindow::highlightInTable(QTableWidget *table, const QString &keyword)
     }
 }
 
+bool MainWindow::ensureProjectForImport(QString *projectName)
+{
+    if (!m_projectList) {
+        return false;
+    }
+
+    QStringList choices;
+    for (int i = 0; i < m_projectList->count(); ++i) {
+        const QString text = m_projectList->item(i)->text().trimmed();
+        if (!text.isEmpty() && text != QStringLiteral("全部项目")) {
+            choices.append(text);
+        }
+    }
+    choices.removeDuplicates();
+    choices.append(QStringLiteral("＋ 新建项目"));
+
+    bool ok = false;
+    const QString picked = QInputDialog::getItem(this,
+                                                 QStringLiteral("选择导入项目"),
+                                                 QStringLiteral("请先选择一个项目（或新建）："),
+                                                 choices,
+                                                 0,
+                                                 false,
+                                                 &ok);
+    if (!ok || picked.isEmpty()) {
+        updateStatus(QStringLiteral("已取消导入：未选择项目。"));
+        return false;
+    }
+
+    QString targetProject = picked;
+    if (picked == QStringLiteral("＋ 新建项目")) {
+        const QString name = QInputDialog::getText(this,
+                                                   QStringLiteral("新建项目"),
+                                                   QStringLiteral("项目名称："),
+                                                   QLineEdit::Normal,
+                                                   {},
+                                                   &ok)
+                                 .trimmed();
+        if (!ok || name.isEmpty()) {
+            updateStatus(QStringLiteral("已取消导入：未创建项目。"));
+            return false;
+        }
+        targetProject = name;
+
+        bool exists = false;
+        for (int i = 0; i < m_projectList->count(); ++i) {
+            if (m_projectList->item(i)->text() == targetProject) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            m_projectList->addItem(targetProject);
+        }
+    }
+
+    QList<QListWidgetItem *> matched = m_projectList->findItems(targetProject, Qt::MatchExactly);
+    if (!matched.isEmpty()) {
+        m_projectList->setCurrentItem(matched.first());
+    }
+
+    if (projectName) {
+        *projectName = targetProject;
+    }
+    return true;
+}
+
+bool MainWindow::importLichuangSpreadsheetFlow()
+{
+    QString projectName;
+    if (!ensureProjectForImport(&projectName)) {
+        return false;
+    }
+
+    const QString path = QFileDialog::getOpenFileName(this,
+                                                      QStringLiteral("选择立创导出文件"),
+                                                      QString(),
+                                                      QStringLiteral("Spreadsheet Files (*.xlsx *.xls *.csv);;All Files (*.*)"));
+    if (path.isEmpty()) {
+        updateStatus(QStringLiteral("已取消立创导入。"));
+        return false;
+    }
+
+    QString csvPath;
+    QString error;
+    if (path.endsWith(QStringLiteral(".csv"), Qt::CaseInsensitive)) {
+        csvPath = path;
+    } else if (!convertSpreadsheetToCsv(path, &csvPath, &error)) {
+        updateStatus(QStringLiteral("导入失败：%1").arg(error));
+        return false;
+    }
+
+    if (!loadLichuangCsvIntoBomTable(csvPath, projectName, &error)) {
+        updateStatus(QStringLiteral("导入失败：%1").arg(error));
+        return false;
+    }
+
+    applySearchHighlight(m_searchInput ? m_searchInput->text().trimmed() : QString());
+    updateStatus(QStringLiteral("已导入立创 BOM：%1，绑定项目：%2").arg(QFileInfo(path).fileName(), projectName));
+    return true;
+}
+
 bool MainWindow::importSpreadsheetFlow()
 {
     const QString path = QFileDialog::getOpenFileName(this,
@@ -941,6 +1043,101 @@ bool MainWindow::loadCsvIntoBomTable(const QString &csvPath, QString *error)
         for (int c = 0; c < cols; ++c) {
             const QString text = c < row.size() ? row[c].trimmed() : QString();
             m_bomTable->setItem(r, c, new QTableWidgetItem(text));
+        }
+    }
+
+    m_bomTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    return true;
+}
+
+bool MainWindow::loadLichuangCsvIntoBomTable(const QString &csvPath, const QString &projectName, QString *error)
+{
+    QFile file(csvPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (error) {
+            *error = QStringLiteral("无法打开 CSV 文件：%1").arg(csvPath);
+        }
+        return false;
+    }
+
+    QTextStream in(&file);
+    in.setEncoding(QStringConverter::Utf8);
+
+    QList<QStringList> rows;
+    while (!in.atEnd()) {
+        rows.append(parseCsvLine(in.readLine()));
+    }
+
+    const auto normalized = [](QString v) {
+        return v.remove(' ').remove('	').trimmed();
+    };
+
+    int headerRow = -1;
+    for (int r = 0; r < rows.size(); ++r) {
+        const QString merged = normalized(rows[r].join(QString()));
+        if (merged.contains(QStringLiteral("商品编号"))
+            && merged.contains(QStringLiteral("厂家型号"))
+            && merged.contains(QStringLiteral("订购数量（修改后）"))
+            && merged.contains(QStringLiteral("商品金额"))) {
+            headerRow = r;
+            break;
+        }
+    }
+
+    if (headerRow < 0) {
+        if (error) {
+            *error = QStringLiteral("未识别到立创表头（应包含第18行字段）。");
+        }
+        return false;
+    }
+
+    QList<QStringList> dataRows;
+    for (int r = headerRow + 1; r < rows.size(); ++r) {
+        const QStringList row = rows[r];
+        const auto at = [&](int idx) { return idx < row.size() ? row[idx].trimmed() : QString(); };
+
+        const QString itemCode = at(1);
+        const QString brand = at(2);
+        const QString model = at(3);
+        const QString pkg = at(4);
+        const QString name = at(5);
+        const QString qty = at(6);
+        const QString unitPrice = at(9);
+        const QString amount = at(10);
+
+        const bool empty = itemCode.isEmpty() && brand.isEmpty() && model.isEmpty()
+                           && pkg.isEmpty() && name.isEmpty() && qty.isEmpty()
+                           && unitPrice.isEmpty() && amount.isEmpty();
+        if (empty) {
+            continue;
+        }
+
+        dataRows.append({projectName, itemCode, brand, model, pkg, name, qty, unitPrice, amount});
+    }
+
+    if (dataRows.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral("立创导入未找到有效数据（应从第19行开始）。");
+        }
+        return false;
+    }
+
+    m_bomTable->clear();
+    m_bomTable->setColumnCount(9);
+    m_bomTable->setHorizontalHeaderLabels({QStringLiteral("项目"),
+                                           QStringLiteral("商品编号"),
+                                           QStringLiteral("品牌"),
+                                           QStringLiteral("厂家型号"),
+                                           QStringLiteral("封装"),
+                                           QStringLiteral("商品名称"),
+                                           QStringLiteral("订购数量（修改后）"),
+                                           QStringLiteral("商品单价"),
+                                           QStringLiteral("商品金额")});
+    m_bomTable->setRowCount(dataRows.size());
+
+    for (int r = 0; r < dataRows.size(); ++r) {
+        for (int c = 0; c < dataRows[r].size(); ++c) {
+            m_bomTable->setItem(r, c, new QTableWidgetItem(dataRows[r][c]));
         }
     }
 
