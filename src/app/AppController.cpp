@@ -24,25 +24,11 @@ AppController::AppController(QObject *parent)
     setStatus(QStringLiteral("已就绪：请先选择项目，再执行导入或管理。"));
 }
 
-ThemeController *AppController::theme()
-{
-    return &m_theme;
-}
-
-ProjectController *AppController::projects()
-{
-    return &m_projects;
-}
-
-BomTableModel *AppController::bomModel()
-{
-    return &m_bomModel;
-}
-
-QString AppController::status() const
-{
-    return m_status;
-}
+ThemeController *AppController::theme() { return &m_theme; }
+ProjectController *AppController::projects() { return &m_projects; }
+CategoryController *AppController::categories() { return &m_categories; }
+BomTableModel *AppController::bomModel() { return &m_bomModel; }
+QString AppController::status() const { return m_status; }
 
 void AppController::cycleTheme()
 {
@@ -73,6 +59,13 @@ void AppController::importLichuang(const QUrl &fileUrl, const QString &projectNa
 
     m_bomModel.setSourceData(result.headers, result.rows);
     setStatus(QStringLiteral("已导入立创 BOM：%1，绑定项目：%2").arg(fileUrl.fileName(), targetProject));
+}
+
+void AppController::notify(const QString &message)
+{
+    if (!message.trimmed().isEmpty()) {
+        setStatus(message.trimmed());
+    }
 }
 
 void AppController::setStatus(const QString &status)

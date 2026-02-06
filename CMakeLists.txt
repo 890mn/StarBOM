@@ -15,6 +15,8 @@ qt_add_executable(StarBOM
     src/app/ThemeController.h
     src/app/ProjectController.cpp
     src/app/ProjectController.h
+    src/app/CategoryController.cpp
+    src/app/CategoryController.h
     src/app/BomTableModel.cpp
     src/app/BomTableModel.h
     src/app/ImportService.cpp

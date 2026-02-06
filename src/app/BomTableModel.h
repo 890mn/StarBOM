@@ -5,6 +5,7 @@
 class BomTableModel : public QAbstractTableModel
 {
     Q_OBJECT
+    Q_PROPERTY(QString filterKeyword READ filterKeyword WRITE setFilterKeyword NOTIFY filterKeywordChanged)
 
 public:
     explicit BomTableModel(QObject *parent = nullptr);
@@ -20,10 +21,20 @@ public:
     Q_INVOKABLE int visibleSlotCount() const;
     Q_INVOKABLE void sortByVisibleColumn(int slot, bool ascending);
 
+    QString filterKeyword() const;
+    Q_INVOKABLE void setFilterKeyword(const QString &keyword);
+
     void setSourceData(const QStringList &headers, const QList<QStringList> &rows);
 
+signals:
+    void filterKeywordChanged();
+
 private:
+    void rebuildFilteredRows();
+
     QStringList m_sourceHeaders;
     QList<QStringList> m_sourceRows;
+    QList<QStringList> m_filteredRows;
     QList<int> m_visibleSourceColumns;
+    QString m_filterKeyword;
 };

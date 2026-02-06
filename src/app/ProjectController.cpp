@@ -45,12 +45,32 @@ bool ProjectController::addProject(const QString &name)
     }
 
     QStringList names = m_model.stringList();
-    if (names.contains(trimmed)) {
-        setSelectedProject(trimmed);
-        return true;
+    if (!names.contains(trimmed)) {
+        names.append(trimmed);
+        m_model.setStringList(names);
     }
-    names.append(trimmed);
+    setSelectedProject(trimmed);
+    return true;
+}
+
+bool ProjectController::renameProject(int index, const QString &name)
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    QStringList names = m_model.stringList();
+    if (index < 0 || index >= names.size() || names[index] == QStringLiteral("全部项目")) {
+        return false;
+    }
+    names[index] = trimmed;
     m_model.setStringList(names);
     setSelectedProject(trimmed);
     return true;
+}
+
+void ProjectController::clearSelection()
+{
+    setSelectedProject(QStringLiteral("全部项目"));
 }

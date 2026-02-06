@@ -5,37 +5,56 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     required property var app
-    required property Dialog projectDialog
+    signal requestImport()
+    signal requestNewProject()
+    signal requestRenameProject(int index, string currentName)
+    signal requestNewCategory()
+    signal requestRenameCategory(int index, string currentName)
+    property string selectedCategoryName: ""
 
-    radius: 10
+    radius: 12
     color: "white"
     border.color: "#D8E0EA"
+
+    function primaryColor() {
+        if (app.theme.currentThemeName === "Citrus Triad") return "#306B34"
+        if (app.theme.currentThemeName === "Slate Triad") return "#384E77"
+        return "#2E5BFF"
+    }
+
+    function secondaryColor() {
+        if (app.theme.currentThemeName === "Citrus Triad") return "#FF7F11"
+        if (app.theme.currentThemeName === "Slate Triad") return "#D66A6A"
+        return "#FF7A00"
+    }
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
-        spacing: 12
+        spacing: 10
 
-        ColumnLayout {
+        RowLayout {
             Layout.fillWidth: true
-            spacing: 6
-            RowLayout {
-                Layout.fillWidth: true
-                Label { text: "StarBOM"; font.pixelSize: 34; font.bold: true }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: "<span style='font-size:12px'>🐙</span> <a href='https://github.com/890mn/StarBOM'>890mn</a>"
-                    textFormat: Text.RichText
-                    onLinkActivated: Qt.openUrlExternally(link)
-                }
+            Label { text: "StarBOM"; font.pixelSize: 34; font.bold: true; color: root.primaryColor() }
+            Item { Layout.fillWidth: true }
+            Text {
+                text: "<span style='font-size:12px'>🐙</span> <a href='https://github.com/890mn/StarBOM'>890mn</a>"
+                textFormat: Text.RichText
+                onLinkActivated: Qt.openUrlExternally(link)
             }
-            RowLayout {
-                Layout.fillWidth: true
-                Label { text: "主题：" }
-                Button { text: root.app.theme.currentThemeName; flat: true; onClicked: root.app.cycleTheme() }
-                Item { Layout.fillWidth: true }
-                Label { text: "v0.3.0"; color: "#6B7280"; font.pixelSize: 12 }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Label { text: "主题：" }
+            Button {
+                text: app.theme.currentThemeName
+                flat: true
+                onClicked: app.cycleTheme()
+                contentItem: Text { text: parent.text; color: root.primaryColor(); font.underline: true; font.bold: true }
             }
+            Item { Layout.fillWidth: true }
+            Label { text: "v0.3.0"; color: "#64748B"; font.pixelSize: 12 }
         }
 
         GroupBox {
@@ -43,16 +62,20 @@ Rectangle {
             Layout.fillWidth: true
             ColumnLayout {
                 anchors.fill: parent
-                Button { text: "立创导入（XLS）"; Layout.fillWidth: true; onClicked: root.projectDialog.open() }
-                Button { text: "从 XLS/XLSX 导入"; Layout.fillWidth: true; onClicked: root.projectDialog.open() }
-                Button { text: "OCR 图片导入（后续）"; Layout.fillWidth: true }
+                spacing: 8
+                Button { text: "立创导入（XLS）"; Layout.fillWidth: true; onClicked: root.requestImport() }
+                Button { text: "从 XLS/XLSX 导入"; Layout.fillWidth: true; onClicked: root.requestImport() }
+                Button { text: "OCR 图片导入（后续）"; Layout.fillWidth: true; onClicked: app.notify("OCR 导入：目标项目 " + app.projects.selectedProject + "（识别流程待接入）。") }
             }
         }
 
         GroupBox {
             title: "导出"
             Layout.fillWidth: true
-            ColumnLayout { anchors.fill: parent; Button { text: "导出 CSV"; Layout.fillWidth: true } }
+            ColumnLayout {
+                anchors.fill: parent
+                Button { text: "导出 CSV"; Layout.fillWidth: true; onClicked: app.notify("CSV 导出任务已触发：范围 " + app.projects.selectedProject) }
+            }
         }
 
         GroupBox {
@@ -61,16 +84,71 @@ Rectangle {
             Layout.fillHeight: true
             ColumnLayout {
                 anchors.fill: parent
+                spacing: 8
                 ListView {
+                    id: projectList
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 180
+                    clip: true
+                    model: app.projects.model
+                    currentIndex: Math.max(0, app.projects.projectNames(true).indexOf(app.projects.selectedProject))
+                    delegate: ItemDelegate {
+                        required property int index
+                        required property string display
+                        width: ListView.view.width
+                        text: display
+                        leftPadding: 14
+                        background: Rectangle {
+                            color: app.projects.selectedProject === display ? Qt.rgba(46/255, 91/255, 1, 0.12) : "transparent"
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: app.projects.selectedProject === display ? 5 : 2
+                                height: parent.height * 0.72
+                                radius: 2
+                                color: app.projects.selectedProject === display ? root.primaryColor() : "transparent"
+                            }
+                        }
+                        onClicked: app.projects.selectedProject = display
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Button { text: "新建"; Layout.fillWidth: true; onClicked: root.requestNewProject() }
+                    Button {
+                        text: "重命名"
+                        Layout.fillWidth: true
+                        onClicked: root.requestRenameProject(projectList.currentIndex, app.projects.selectedProject)
+                    }
+                    Button { text: "取消选中"; Layout.fillWidth: true; onClicked: app.projects.clearSelection() }
+                }
+            }
+        }
+
+        GroupBox {
+            title: "分类组"
+            Layout.fillWidth: true
+            Layout.preferredHeight: 220
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 8
+                ListView {
+                    id: categoryList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: root.app.projects.model
+                    model: app.categories.model
                     delegate: ItemDelegate {
+                        required property int index
+                        required property string display
                         width: ListView.view.width
-                        text: model.display
-                        highlighted: root.app.projects.selectedProject === model.display
-                        onClicked: root.app.projects.selectedProject = model.display
+                        text: display
+                        onClicked: { categoryList.currentIndex = index; root.selectedCategoryName = display }
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Button { text: "新增"; Layout.fillWidth: true; onClicked: root.requestNewCategory() }
+                    Button { text: "修改"; Layout.fillWidth: true; onClicked: root.requestRenameCategory(categoryList.currentIndex, root.selectedCategoryName) }
                 }
             }
         }
