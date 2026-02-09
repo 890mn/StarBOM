@@ -18,7 +18,7 @@ Rectangle {
     border.color: themeColors.border
 
     FontLoader {
-        id: Audiowide
+        id: audioWide
         source: "qrc:/qt/qml/StarBOM/src/asset/Audiowide-Regular.ttf"
     }
 
@@ -31,7 +31,7 @@ Rectangle {
             Layout.fillWidth: true
             Label {
                 text: "StarBOM"
-                font.family: Audiowide.name
+                font.family: audioWide.name
                 font.pixelSize: 34
                 font.bold: true
                 color: themeColors.primary
@@ -51,7 +51,7 @@ Rectangle {
 
         RowLayout {
             Image {
-                source: "qrc:/qt/qml/StarBOM/src/asset/Github.png"
+                source: "qrc:/qt/qml/StarBOM/src/asset/Github-dark.png"
                 width: 12
                 height: 12
                 fillMode: Image.PreserveAspectFit

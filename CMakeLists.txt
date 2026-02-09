@@ -32,7 +32,8 @@ qt_add_qml_module(StarBOM
         src/qml/components/BomPane.qml
     RESOURCES
         src/asset/Audiowide-Regular.ttf
-        src/asset/Github.png
+        RESOURCES src/asset/Github-dark.png
+        RESOURCES src/asset/Github-light.png
 )
 
 target_link_libraries(StarBOM PRIVATE Qt6::Quick Qt6::QuickControls2)
