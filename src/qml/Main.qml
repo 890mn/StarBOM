@@ -7,10 +7,12 @@ import "components"
 
 ApplicationWindow {
     id: root
-    width: 1500
-    height: 920
+    width: Math.min(1600, Math.max(1200, Math.round(Screen.width * 0.88)))
+    height: Math.min(980, Math.max(760, Math.round(Screen.height * 0.88)))
     visible: true
     title: "Link2BOM"
+    minimumWidth: 1100
+    minimumHeight: 700
 
     property var appCtx: app
     property string activeProjectForImport: ""
@@ -104,8 +106,8 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 10
+        anchors.margins: 8
+        spacing: 8
 
         SidebarPane {
             Layout.preferredWidth: 340
@@ -259,5 +261,7 @@ ApplicationWindow {
         }
     }
 }
+
+
 
 

@@ -64,6 +64,10 @@ qt_add_qml_module(${APP_NAME}
 
 target_link_libraries(${APP_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2)
 
+if (WIN32)
+    target_link_libraries(${APP_NAME} PRIVATE dwmapi)
+endif()
+
 if (MINGW AND LINK2BOM_STRIP_BINARY)
     target_link_options(${APP_NAME} PRIVATE
         $<$<CONFIG:Release>:-s>
@@ -75,4 +79,6 @@ install(TARGETS ${APP_NAME}
     BUNDLE DESTINATION .
     RUNTIME DESTINATION bin
 )
+
+
 
