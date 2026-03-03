@@ -9,12 +9,23 @@ set(CMAKE_AUTORCC ON)
 
 option(LINK2BOM_STRIP_BINARY "Strip symbols for smaller binaries" ON)
 
+set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_PIC ON CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_EXAMPLE_HO OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_WARNINGS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(3rd-party/spdlog-1.17.0 EXCLUDE_FROM_ALL)
+
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
 set(APP_CPP_SOURCES
     src/main.cpp
+    src/app/AppLogger.cpp
     src/app/AppController.cpp
     src/app/ThemeController.cpp
     src/app/ProjectController.cpp
@@ -24,6 +35,7 @@ set(APP_CPP_SOURCES
 )
 
 set(APP_HEADERS
+    src/app/AppLogger.h
     src/app/AppController.h
     src/app/ThemeController.h
     src/app/ProjectController.h
@@ -68,7 +80,7 @@ qt_add_qml_module(${APP_NAME}
     RESOURCES src/qml/components/qmldir
 )
 
-target_link_libraries(${APP_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(${APP_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2 spdlog::spdlog_header_only)
 
 if (WIN32)
     target_link_libraries(${APP_NAME} PRIVATE dwmapi)

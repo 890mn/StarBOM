@@ -16,7 +16,7 @@ Rectangle {
     signal dragging(real globalY)
     signal endDrag()
 
-    property real expandedHeight: Math.max(normalHeight, headerBar.implicitHeight + contentHost.childrenRect.height + 20)
+    property real expandedHeight: Math.max(normalHeight, minModuleHeight)
 
     radius: 12
     color: root.themeColors.subtle
@@ -111,4 +111,3 @@ Rectangle {
         visible: !root.collapsed
     }
 }
-

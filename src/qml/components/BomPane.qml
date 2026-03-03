@@ -7,6 +7,8 @@ Item {
     id: root
     required property var app
     required property var themeColors
+    required property string uiLanguage
+    required property var tx
     signal debugLog(string level, string message)
 
     property var slotAscending: []
@@ -15,6 +17,16 @@ Item {
     property int widthBucket: Math.max(320, Math.round(contentFrame.width / 16) * 16)
     property color ratioAccentColor: "#C9778F"
     property real popupMaxHeight: Math.max(260, root.height - 24)
+
+    function txSafe(key, fallback) {
+        if (root.tx) {
+            const value = root.tx(key)
+            if (value !== key) {
+                return value
+            }
+        }
+        return fallback
+    }
 
     function openColumnConfig(slot, anchorItem) {
         if (slot < 0 || slot >= root.app.bomModel.visibleSlotCount()) {
@@ -47,16 +59,18 @@ Item {
     }
 
     function slotWeight(slot) {
-        const name = root.app.bomModel.visibleHeaderAt(slot)
-        if (!name || name.length === 0) return 1.0
+        const header = String(root.app.bomModel.visibleHeaderAt(slot) || "")
+        const name = header.toLowerCase()
+        if (!name.length) return 1.0
 
-        if (name.includes("备注") || name.includes("描述") || name.includes("规格") || name.includes("型号")) return 1.8
-        if (name.includes("名称") || name.includes("物料")) return 1.5
-        if (name.includes("位号") || name.includes("Ref")) return 1.3
-        if (name.includes("料号") || name.includes("编号") || name.includes("Part")) return 1.25
-        if (name.includes("封装")) return 1.2
-        if (name.includes("数量") || name.includes("Qty")) return 0.9
-        if (name.includes("单价") || name.includes("价格") || name.includes("金额")) return 1.0
+        if (name.includes("备注") || name.includes("描述") || name.includes("规格") || name.includes("型号")
+            || name.includes("note") || name.includes("desc") || name.includes("spec") || name.includes("model")) return 1.8
+        if (name.includes("名称") || name.includes("物料") || name.includes("name")) return 1.5
+        if (name.includes("位号") || name.includes("ref")) return 1.3
+        if (name.includes("料号") || name.includes("编号") || name.includes("part")) return 1.25
+        if (name.includes("封装") || name.includes("package")) return 1.2
+        if (name.includes("数量") || name.includes("qty") || name.includes("quantity")) return 0.9
+        if (name.includes("单价") || name.includes("价格") || name.includes("金额") || name.includes("price") || name.includes("amount")) return 1.0
 
         return Math.min(1.8, Math.max(0.9, name.length * 0.16))
     }
@@ -123,7 +137,6 @@ Item {
     }
 
     function slotRatio(slot) {
-        ensureCustomRatios()
         const value = Number(customRatios[slot])
         return value > 0.01 ? value : slotWeight(slot)
     }
@@ -212,7 +225,7 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                text: "列设置"
+                text: root.txSafe("bom.column.config", "Column Settings")
                 color: root.themeColors.text
                 font.bold: true
             }
@@ -222,7 +235,7 @@ Item {
                 spacing: 6
 
                 AppButton {
-                    text: "删除"
+                    text: root.txSafe("common.delete", "Delete")
                     themeColors: root.themeColors
                     Layout.fillWidth: true
                     enabled: root.app.bomModel.visibleSlotCount() > 1
@@ -238,7 +251,7 @@ Item {
                     }
                 }
                 AppButton {
-                    text: "左侧新建"
+                    text: root.txSafe("bom.column.insert.left", "Insert Left")
                     themeColors: root.themeColors
                     Layout.fillWidth: true
                     onClicked: {
@@ -249,7 +262,7 @@ Item {
                     }
                 }
                 AppButton {
-                    text: "右侧新建"
+                    text: root.txSafe("bom.column.insert.right", "Insert Right")
                     themeColors: root.themeColors
                     Layout.fillWidth: true
                     onClicked: {
@@ -263,7 +276,7 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                text: "字段选择"
+                text: root.txSafe("bom.column.fields", "Fields")
                 color: root.themeColors.muted
             }
 
@@ -308,7 +321,7 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                text: "自定义宽度"
+                text: root.txSafe("bom.column.width", "Custom Width")
                 color: root.themeColors.muted
             }
 
@@ -336,14 +349,14 @@ Item {
                 Layout.fillWidth: true
 
                 Label {
-                    text: "比例 " + root.slotRatio(columnConfigPopup.slot).toFixed(2)
+                    text: root.txSafe("bom.column.ratio", "Ratio") + " " + root.slotRatio(columnConfigPopup.slot).toFixed(2)
                     color: root.themeColors.text
                 }
 
                 Item { Layout.fillWidth: true }
 
                 AppButton {
-                    text: "重置"
+                    text: root.txSafe("common.reset", "Reset")
                     themeColors: root.themeColors
                     onClicked: {
                         root.debugLog("INFO", "Reset ratio for slot " + columnConfigPopup.slot)
@@ -357,177 +370,121 @@ Item {
     Rectangle {
         id: contentFrame
         anchors.fill: parent
-        radius: 14
-        color: root.themeColors.card
-        border.width: 1
-        border.color: root.themeColors.border
+        radius: 12
+        color: "transparent"
+        border.width: 0
         antialiasing: true
         clip: true
+        layer.enabled: true
+        layer.smooth: true
 
-        Rectangle {
+        ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 1
-            radius: 12
-            color: root.themeColors.card
-            antialiasing: true
-            clip: true
+            spacing: 0
 
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
+            HorizontalHeaderView {
+                id: header
+                Layout.fillWidth: true
+                syncView: tableView
+                clip: true
+                columnWidthProvider: function(column) { return root.slotWidth(column) }
 
-                HorizontalHeaderView {
-                    id: header
-                    Layout.fillWidth: true
-                    syncView: tableView
-                    clip: true
-                    columnWidthProvider: function(column) { return root.slotWidth(column) }
+                delegate: Rectangle {
+                    id: headerCell
+                    required property int column
+                    required property string display
+                    implicitHeight: 40
+                    color: root.themeColors.subtle
+                    border.color: "transparent"
 
-                    delegate: Rectangle {
-                        id: headerCell
-                        required property int column
-                        required property string display
-                        implicitHeight: 40
-                        color: root.themeColors.subtle
-                        border.color: "transparent"
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 6
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 8
-                            spacing: 6
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: headerCell.display
-                                color: root.themeColors.text
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                elide: Text.ElideRight
-                                font.bold: true
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.openColumnConfig(headerCell.column, headerCell)
-                                    }
-                                }
-                            }
-
-                            Item {
-                                implicitWidth: 16
-                                implicitHeight: 16
-
-                                Image {
-                                    anchors.centerIn: parent
-                                    width: 14
-                                    height: 14
-                                    fillMode: Image.PreserveAspectFit
-                                    source: {
-                                        const dark = root.app.theme.currentThemeName === "Dark"
-                                        if (root.slotAscending[headerCell.column]) {
-                                            return dark ? "qrc:/assets/up-dark.png" : "qrc:/assets/up-light.png"
-                                        }
-                                        return dark ? "qrc:/assets/down-dark.png" : "qrc:/assets/down-light.png"
-                                    }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggleSort(headerCell.column)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                TableView {
-                    id: tableView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.leftMargin: 0
-                    Layout.rightMargin: 0
-                    Layout.bottomMargin: 0
-                    clip: true
-                    model: root.app.bomModel
-                    boundsBehavior: Flickable.StopAtBounds
-                    interactive: true
-                    flickableDirection: Flickable.VerticalFlick
-                    rowSpacing: 0
-                    columnSpacing: 0
-                    columnWidthProvider: function(column) { return root.slotWidth(column) }
-                    ScrollBar.vertical: ScrollBar {
-                        policy: ScrollBar.AsNeeded
-                    }
-
-                    delegate: Rectangle {
-                        id: cell
-                        required property int row
-                        required property int column
-                        required property string display
-                        implicitHeight: 34
-                        color: cell.row % 2 === 0 ? root.themeColors.card : root.themeColors.subtle
-                        border.width: 0
-
-                        Text {
-                            anchors.fill: parent
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: headerCell.display
+                            color: root.themeColors.text
+                            horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
-                            text: cell.display === undefined ? "" : cell.display
-                            color: root.themeColors.text
+                            font.bold: true
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.openColumnConfig(headerCell.column, headerCell)
+                                }
+                            }
+                        }
+
+                        Item {
+                            implicitWidth: 16
+                            implicitHeight: 16
+
+                            Image {
+                                anchors.centerIn: parent
+                                width: 14
+                                height: 14
+                                fillMode: Image.PreserveAspectFit
+                                source: {
+                                    const dark = root.app.theme.currentThemeName === "Dark"
+                                    if (root.slotAscending[headerCell.column]) {
+                                        return dark ? "qrc:/assets/up-dark.png" : "qrc:/assets/up-light.png"
+                                    }
+                                    return dark ? "qrc:/assets/down-dark.png" : "qrc:/assets/down-light.png"
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggleSort(headerCell.column)
+                            }
                         }
                     }
                 }
             }
 
-            Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                width: 14
-                height: 14
-                radius: 10
-                color: root.themeColors.card
-            }
+            TableView {
+                id: tableView
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: root.app.bomModel
+                boundsBehavior: Flickable.StopAtBounds
+                interactive: true
+                flickableDirection: Flickable.VerticalFlick
+                rowSpacing: 0
+                columnSpacing: 0
+                columnWidthProvider: function(column) { return root.slotWidth(column) }
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                }
 
-            Rectangle {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                width: 14
-                height: 14
-                radius: 10
-                color: root.themeColors.card
-            }
+                delegate: Rectangle {
+                    id: cell
+                    required property int row
+                    required property int column
+                    required property string display
+                    implicitHeight: 34
+                    color: cell.row % 2 === 0 ? root.themeColors.card : root.themeColors.subtle
+                    border.width: 0
 
-            Rectangle {
-                anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                width: 14
-                height: 14
-                radius: 10
-                color: root.themeColors.card
+                    Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        text: cell.display === undefined ? "" : cell.display
+                        color: root.themeColors.text
+                    }
+                }
             }
-
-            Rectangle {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                width: 14
-                height: 14
-                radius: 10
-                color: root.themeColors.card
-            }
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            radius: 14
-            border.width: 1
-            border.color: root.themeColors.border
-            antialiasing: true
         }
     }
 }

@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtCore
 import "components"
 
 ApplicationWindow {
@@ -26,6 +27,160 @@ ApplicationWindow {
     property bool showInfoLogs: true
     property bool showWarningLogs: true
     property bool showErrorLogs: true
+    property string uiLanguage: uiSettings.language
+    property var textZh: ({
+        "dialog.selectImportProject": "选择导入项目",
+        "dialog.newProjectOr": "或新建项目",
+        "dialog.selectLichuangFile": "选择立创导出文件",
+        "dialog.inputName": "请输入名称",
+        "dialog.newProject": "新建项目",
+        "dialog.renameProject": "重命名项目",
+        "dialog.newCategory": "新增分类组",
+        "dialog.renameCategory": "修改分类组",
+        "warn.selectProjectRename": "请先选择一个具体项目再重命名。",
+        "warn.selectProjectDelete": "请先选择一个具体项目再删除。",
+        "warn.selectCategoryRename": "请先选择要修改的分类组。",
+        "warn.selectCategoryDelete": "请先选择要删除的分类组。",
+        "notify.categoryDeleted": "分类组已删除: ",
+        "tab.bomView": "BOM 视图",
+        "tab.diff": "差异分析",
+        "search.placeholder": "全文搜索（料号/位号/规格/备注）",
+        "common.clear": "清空",
+        "diff.title": "差异分析",
+        "diff.todo": "后续接入版本对比、替代料推荐、成本变化趋势。",
+        "debug.console": "调试控制台",
+        "debug.clear": "清空",
+        "settings.title": "设置",
+        "settings.language": "语言",
+        "settings.lang.zh": "中文",
+        "settings.lang.en": "English",
+        "projects.all": "全部项目",
+        "common.new": "新建",
+        "common.rename": "重命名",
+        "common.delete": "删除",
+        "common.reset": "重置",
+        "sidebar.import": "导入",
+        "sidebar.import.lcsc": "立创导入 (XLS)",
+        "sidebar.import.sheet": "导入 XLS/XLSX",
+        "sidebar.import.ocr": "OCR 导入（后续）",
+        "sidebar.import.ocr.todo": "OCR 流程尚未接入。",
+        "sidebar.export": "导出",
+        "sidebar.export.csv": "导出 CSV",
+        "sidebar.export.todo": "CSV 导出已触发。",
+        "sidebar.projects": "项目",
+        "sidebar.categories": "分类",
+        "sidebar.height": "高度",
+        "sidebar.height.auto": "自动高度",
+        "sidebar.height.custom": "自定义高度",
+        "tree.brand": "品牌",
+        "tree.package": "封装",
+        "tree.type": "类型",
+        "tree.type.clear": "清空类型筛选",
+        "type.resistor": "电阻/阻值件",
+        "type.capacitor": "电容",
+        "type.inductor": "电感",
+        "type.ic": "IC/芯片",
+        "type.connector": "连接器",
+        "type.switch": "开关",
+        "type.power": "电源",
+        "type.other": "其他",
+        "bom.column.config": "列设置",
+        "bom.column.insert.left": "左侧新建",
+        "bom.column.insert.right": "右侧新建",
+        "bom.column.fields": "字段选择",
+        "bom.column.width": "自定义宽度",
+        "bom.column.ratio": "比例"
+    })
+    property var textEn: ({
+        "dialog.selectImportProject": "Select Import Project",
+        "dialog.newProjectOr": "Or create new project",
+        "dialog.selectLichuangFile": "Select LCSC export file",
+        "dialog.inputName": "Please enter a name",
+        "dialog.newProject": "New Project",
+        "dialog.renameProject": "Rename Project",
+        "dialog.newCategory": "New Category Group",
+        "dialog.renameCategory": "Rename Category Group",
+        "warn.selectProjectRename": "Select a specific project before renaming.",
+        "warn.selectProjectDelete": "Select a specific project before deleting.",
+        "warn.selectCategoryRename": "Select a category group before renaming.",
+        "warn.selectCategoryDelete": "Select a category group before deleting.",
+        "notify.categoryDeleted": "Category group deleted: ",
+        "tab.bomView": "BOM View",
+        "tab.diff": "Diff Analysis",
+        "search.placeholder": "Global search (part/ref/spec/note)",
+        "common.clear": "Clear",
+        "diff.title": "Diff Analysis",
+        "diff.todo": "Version diff, alternates suggestion, and cost trend will be added later.",
+        "debug.console": "Debug Console",
+        "debug.clear": "Clear",
+        "settings.title": "Settings",
+        "settings.language": "Language",
+        "settings.lang.zh": "Chinese",
+        "settings.lang.en": "English",
+        "projects.all": "All Projects",
+        "common.new": "New",
+        "common.rename": "Rename",
+        "common.delete": "Delete",
+        "common.reset": "Reset",
+        "sidebar.import": "Import",
+        "sidebar.import.lcsc": "LCSC Import (XLS)",
+        "sidebar.import.sheet": "Import XLS/XLSX",
+        "sidebar.import.ocr": "OCR Import (Later)",
+        "sidebar.import.ocr.todo": "OCR flow is not connected yet.",
+        "sidebar.export": "Export",
+        "sidebar.export.csv": "Export CSV",
+        "sidebar.export.todo": "CSV export is triggered.",
+        "sidebar.projects": "Projects",
+        "sidebar.categories": "Categories",
+        "sidebar.height": "Height",
+        "sidebar.height.auto": "Auto Height",
+        "sidebar.height.custom": "Custom Height",
+        "tree.brand": "Brand",
+        "tree.package": "Package",
+        "tree.type": "Type",
+        "tree.type.clear": "Clear Type Filter",
+        "type.resistor": "Resistor",
+        "type.capacitor": "Capacitor",
+        "type.inductor": "Inductor",
+        "type.ic": "IC/Chip",
+        "type.connector": "Connector",
+        "type.switch": "Switch",
+        "type.power": "Power",
+        "type.other": "Other",
+        "bom.column.config": "Column Settings",
+        "bom.column.insert.left": "Insert Left",
+        "bom.column.insert.right": "Insert Right",
+        "bom.column.fields": "Fields",
+        "bom.column.width": "Custom Width",
+        "bom.column.ratio": "Ratio"
+    })
+
+    function tx(key) {
+        const table = uiLanguage === "en-US" ? textEn : textZh
+        return table[key] !== undefined ? table[key] : key
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;")
+    }
+
+    function levelColor(level) {
+        const key = String(level).toUpperCase()
+        if (key === "ERROR") return "#EF4444"
+        if (key === "WARNING") return "#F59E0B"
+        return darkTheme ? "#93C5FD" : "#2563EB"
+    }
+
+    Settings {
+        id: uiSettings
+        category: "UiGeneral"
+        property string language: "zh-CN"
+    }
 
     function rebuildDebugLogText() {
         const lines = []
@@ -35,23 +190,20 @@ ApplicationWindow {
                 || (entry.level === "WARNING" && showWarningLogs)
                 || (entry.level === "ERROR" && showErrorLogs)
             if (visible) {
-                lines.push("[" + entry.time + "][" + entry.level + "] " + entry.message)
+                const color = levelColor(entry.level)
+                const content = "[" + entry.time + "] [" + entry.level + "] [app] " + entry.message
+                lines.push("<span style='color:" + color + "'>" + escapeHtml(content) + "</span>")
             }
         }
-        debugLogText = lines.join("\n")
+        debugLogText = lines.join("<br/>")
     }
 
-    function appendDebugLog(level, message) {
-        if (message === undefined) {
-            message = level
-            level = "INFO"
-        }
-        const stamp = Qt.formatDateTime(new Date(), "hh:mm:ss")
+    function addDebugEntry(time, level, message) {
         const normalized = String(level).toUpperCase()
         const safeLevel = (normalized === "WARNING" || normalized === "ERROR") ? normalized : "INFO"
         const next = debugEntries.slice()
         next.push({
-            "time": stamp,
+            "time": time,
             "level": safeLevel,
             "message": String(message)
         })
@@ -62,14 +214,30 @@ ApplicationWindow {
         rebuildDebugLogText()
     }
 
-    function logInfo(message) { appendDebugLog("INFO", message) }
-    function logWarning(message) { appendDebugLog("WARNING", message) }
-    function logError(message) { appendDebugLog("ERROR", message) }
+    function appendDebugLog(level, message) {
+        if (message === undefined) {
+            message = level
+            level = "INFO"
+        }
+        const normalized = String(level).toUpperCase()
+        if (normalized === "WARNING") {
+            root.appCtx.logWarning(String(message))
+        } else if (normalized === "ERROR") {
+            root.appCtx.logError(String(message))
+        } else {
+            root.appCtx.logInfo(String(message))
+        }
+    }
+
+    function logInfo(message) { root.appCtx.logInfo(String(message)) }
+    function logWarning(message) { root.appCtx.logWarning(String(message)) }
+    function logError(message) { root.appCtx.logError(String(message)) }
 
     onShowInfoLogsChanged: rebuildDebugLogText()
     onShowWarningLogsChanged: rebuildDebugLogText()
     onShowErrorLogsChanged: rebuildDebugLogText()
     onDebugEntriesChanged: rebuildDebugLogText()
+    onUiLanguageChanged: uiSettings.language = uiLanguage
     onDebugPanelVisibleChanged: {
         if (debugPanelVisible) {
             logInfo("Debug panel opened")
@@ -117,7 +285,7 @@ ApplicationWindow {
 
     Dialog {
         id: projectForImportDialog
-        title: "选择导入项目"
+        title: root.tx("dialog.selectImportProject")
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: 420
@@ -144,7 +312,7 @@ ApplicationWindow {
             TextField {
                 id: newProjectField
                 Layout.fillWidth: true
-                placeholderText: "或新建项目"
+                placeholderText: root.tx("dialog.newProjectOr")
             }
         }
 
@@ -166,7 +334,7 @@ ApplicationWindow {
 
     FileDialog {
         id: fileDialog
-        title: "选择立创导出文件"
+        title: root.tx("dialog.selectLichuangFile")
         nameFilters: ["Spreadsheet Files (*.xlsx *.xls *.csv)", "All Files (*.*)"]
         onAccepted: {
             root.logInfo("Import file selected: " + selectedFile.toString())
@@ -182,7 +350,7 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            TextField { id: dialogInput; Layout.fillWidth: true; placeholderText: "请输入名称" }
+            TextField { id: dialogInput; Layout.fillWidth: true; placeholderText: root.tx("dialog.inputName") }
         }
 
         onAccepted: {
@@ -207,18 +375,64 @@ ApplicationWindow {
         }
     }
 
-    Connections {
-        target: root.appCtx
-        function onStatusChanged() {
-            const statusText = root.appCtx.status
-            const lower = statusText.toLowerCase()
-            if (lower.includes("error") || lower.includes("failed")) {
-                root.logError("Status: " + statusText)
-            } else if (lower.includes("warning") || lower.includes("please")) {
-                root.logWarning("Status: " + statusText)
-            } else {
-                root.logInfo("Status: " + statusText)
+    Dialog {
+        id: settingsDialog
+        title: root.tx("settings.title")
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        width: 340
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+        parent: Overlay.overlay
+        closePolicy: Popup.CloseOnEscape
+        padding: 14
+
+        property string pendingLanguage: root.uiLanguage
+
+        background: Rectangle {
+            radius: 14
+            color: root.cardColor
+            border.color: root.borderColor
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            Label {
+                text: root.tx("settings.language")
+                color: root.textColor
+                font.bold: true
             }
+
+            ComboBox {
+                id: languageCombo
+                Layout.fillWidth: true
+                textRole: "label"
+                valueRole: "value"
+                model: [
+                    { "label": root.tx("settings.lang.zh"), "value": "zh-CN" },
+                    { "label": root.tx("settings.lang.en"), "value": "en-US" }
+                ]
+                Component.onCompleted: currentIndex = root.uiLanguage === "en-US" ? 1 : 0
+                onActivated: settingsDialog.pendingLanguage = currentValue
+            }
+        }
+
+        onOpened: {
+            languageCombo.currentIndex = root.uiLanguage === "en-US" ? 1 : 0
+            pendingLanguage = root.uiLanguage
+        }
+        onAccepted: {
+            root.uiLanguage = pendingLanguage
+            root.logInfo("UI language changed: " + root.uiLanguage)
+        }
+    }
+
+    Connections {
+        target: root.appCtx.logRelay
+        function onEntryAdded(time, level, message) {
+            root.addDebugEntry(time, level, message)
         }
     }
 
@@ -247,9 +461,14 @@ ApplicationWindow {
             app: root.appCtx
             pinnedTopMost: root.pinnedTopMost
             themeColors: root.themeColorsObj()
+            uiLanguage: root.uiLanguage
+            tx: root.tx
             onTogglePinned: {
                 root.pinnedTopMost = !root.pinnedTopMost
                 root.logInfo("Toggle pin top-most: " + root.pinnedTopMost)
+            }
+            onOpenSettings: {
+                settingsDialog.open()
             }
             onToggleDebugPanel: {
                 root.debugPanelVisible = !root.debugPanelVisible
@@ -260,27 +479,27 @@ ApplicationWindow {
             }
             onRequestNewProject: {
                 root.logInfo("Request new project dialog")
-                inputDialog.title = "新建项目"
+                inputDialog.title = root.tx("dialog.newProject")
                 inputDialog.mode = "newProject"
                 inputDialog.open()
             }
             onRequestRenameProject: function(index, currentName) {
-                if (index <= 0 || currentName === "All Projects" || currentName === "全部项目") {
+                if (index <= 0 || currentName === "All Projects") {
                     root.logWarning("Rename project rejected: no specific project selected")
-                    root.appCtx.notify("请先选择一个具体项目再重命名。")
+                    root.appCtx.notify(root.tx("warn.selectProjectRename"))
                     return
                 }
                 root.logInfo("Request rename project dialog: index " + index + ", name " + currentName)
                 root.renameProjectIndex = index
-                inputDialog.title = "重命名项目"
+                inputDialog.title = root.tx("dialog.renameProject")
                 inputDialog.mode = "renameProject"
                 dialogInput.text = currentName
                 inputDialog.open()
             }
             onRequestDeleteProject: function(index, currentName) {
-                if (index <= 0 || currentName === "All Projects" || currentName === "全部项目") {
+                if (index <= 0 || currentName === "All Projects") {
                     root.logWarning("Delete project rejected: no specific project selected")
-                    root.appCtx.notify("请先选择一个具体项目再删除。")
+                    root.appCtx.notify(root.tx("warn.selectProjectDelete"))
                     return
                 }
                 root.logInfo("Delete project request: index " + index + ", name " + currentName)
@@ -290,19 +509,19 @@ ApplicationWindow {
             }
             onRequestNewCategory: {
                 root.logInfo("Request new category dialog")
-                inputDialog.title = "新增分类组"
+                inputDialog.title = root.tx("dialog.newCategory")
                 inputDialog.mode = "newCategory"
                 inputDialog.open()
             }
             onRequestRenameCategory: function(index, currentName) {
                 if (index < 0) {
                     root.logWarning("Rename category rejected: no category selected")
-                    root.appCtx.notify("请先选择要修改的分类组。")
+                    root.appCtx.notify(root.tx("warn.selectCategoryRename"))
                     return
                 }
                 root.logInfo("Request rename category dialog: index " + index + ", name " + currentName)
                 root.renameCategoryIndex = index
-                inputDialog.title = "修改分类组"
+                inputDialog.title = root.tx("dialog.renameCategory")
                 inputDialog.mode = "renameCategory"
                 dialogInput.text = currentName
                 inputDialog.open()
@@ -310,162 +529,165 @@ ApplicationWindow {
             onRequestDeleteCategory: function(index, currentName) {
                 if (index < 0) {
                     root.logWarning("Delete category rejected: no category selected")
-                    root.appCtx.notify("请先选择要删除的分类组。")
+                    root.appCtx.notify(root.tx("warn.selectCategoryDelete"))
                     return
                 }
                 root.logInfo("Delete category request: index " + index + ", name " + currentName)
                 if (!root.appCtx.categories.removeCategory(index)) {
                     root.logError("Delete category failed: " + currentName)
                 } else {
-                    root.appCtx.notify("分类组已删除: " + currentName)
+                    root.appCtx.notify(root.tx("notify.categoryDeleted") + currentName)
                 }
             }
         }
 
-        Rectangle {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 12
-            color: root.cardColor
-            border.color: root.borderColor
+            spacing: 8
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 50
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 50
-                    radius: 12
-                    color: "transparent"
-                    border.color: "transparent"
+                RowLayout {
+                    anchors.fill: parent
+                    //anchors.margins: 4
+                    spacing: 8
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 8
+                    Rectangle {
+                        Layout.preferredWidth: 290
+                        Layout.minimumWidth: 290
+                        Layout.maximumWidth: 290
+                        Layout.preferredHeight: 42
+                        radius: 12
+                        color: root.cardColor
+                        border.color: root.borderColor
 
-                        Rectangle {
-                            Layout.preferredWidth: 290
-                            Layout.minimumWidth: 290
-                            Layout.maximumWidth: 290
-                            Layout.preferredHeight: 42
-                            radius: 12
-                            color: root.cardColor
-                            border.color: root.borderColor
+                        TabBar {
+                            id: tabs
+                            anchors.fill: parent
+                            anchors.margins: 0
+                            anchors.topMargin: 3
+                            anchors.bottomMargin: -1
+                            spacing: 6
+                            padding: 0
+                            background: Rectangle {
+                                radius: 10
+                                color: "transparent"
+                            }
+                            onCurrentIndexChanged: {
+                                root.logInfo("View switched: " + (currentIndex === 0 ? "BOM" : "Diff"))
+                            }
 
-                            TabBar {
-                                id: tabs
-                                anchors.fill: parent
-                                anchors.margins: 0
-                                anchors.topMargin: 3
-                                anchors.bottomMargin: -1
-                                spacing: 6
-                                padding: 0
+                            TabButton {
+                                text: root.tx("tab.bomView")
+                                height: tabs.height
+                                implicitWidth: 136
+                                implicitHeight: 36
+                                topPadding: 0
+                                bottomPadding: 0
+                                leftPadding: 0
+                                rightPadding: 0
                                 background: Rectangle {
+                                    anchors.fill: parent
                                     radius: 10
-                                    color: "transparent"
+                                    antialiasing: true
+                                    color: tabs.currentIndex === 0 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
+                                    border.color: tabs.currentIndex === 0 ? root.primaryColor : "transparent"
+                                    border.width: tabs.currentIndex === 0 ? 1 : 0
                                 }
-                                onCurrentIndexChanged: {
-                                    root.logInfo("View switched: " + (currentIndex === 0 ? "BOM" : "Diff"))
-                                }
-
-                                TabButton {
-                                    text: "BOM 视图"
-                                    height: tabs.height
-                                    implicitWidth: 136
-                                    implicitHeight: 36
-                                    topPadding: 0
-                                    bottomPadding: 0
-                                    leftPadding: 0
-                                    rightPadding: 0
-                                    background: Rectangle {
-                                        anchors.fill: parent
-                                        radius: 10
-                                        antialiasing: true
-                                        color: tabs.currentIndex === 0 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
-                                        border.color: tabs.currentIndex === 0 ? root.primaryColor : "transparent"
-                                        border.width: tabs.currentIndex === 0 ? 1 : 0
-                                    }
-                                    contentItem: Text {
-                                        text: "BOM 视图"
-                                        color: root.textColor
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                        font.pixelSize: 14
-                                        font.bold: tabs.currentIndex === 0
-                                    }
-                                }
-
-                                TabButton {
-                                    text: "差异分析"
-                                    height: tabs.height
-                                    implicitWidth: 136
-                                    implicitHeight: 36
-                                    topPadding: 0
-                                    bottomPadding: 0
-                                    leftPadding: 0
-                                    rightPadding: 0
-                                    background: Rectangle {
-                                        anchors.fill: parent
-                                        radius: 10
-                                        antialiasing: true
-                                        color: tabs.currentIndex === 1 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
-                                        border.color: tabs.currentIndex === 1 ? root.primaryColor : "transparent"
-                                        border.width: tabs.currentIndex === 1 ? 1 : 0
-                                    }
-                                    contentItem: Text {
-                                        text: "差异分析"
-                                        color: root.textColor
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                        font.pixelSize: 14
-                                        font.bold: tabs.currentIndex === 1
-                                    }
+                                contentItem: Text {
+                                    text: root.tx("tab.bomView")
+                                    color: root.textColor
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 14
+                                    font.bold: tabs.currentIndex === 0
                                 }
                             }
-                        }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 42
-                            radius: 12
-                            color: root.cardColor
-                            border.color: root.borderColor
-
-                            TextField {
-                                id: globalSearch
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                placeholderText: "全文搜索（料号/位号/规格/备注）"
-                                color: root.textColor
-                                placeholderTextColor: root.mutedTextColor
-                                verticalAlignment: TextInput.AlignVCenter
-                                background: Item {}
-                                onTextChanged: {
-                                    root.appCtx.bomModel.setFilterKeyword(text)
-                                    root.logInfo("Global search changed: \"" + text + "\"")
+                            TabButton {
+                                text: root.tx("tab.diff")
+                                height: tabs.height
+                                implicitWidth: 136
+                                implicitHeight: 36
+                                topPadding: 0
+                                bottomPadding: 0
+                                leftPadding: 0
+                                rightPadding: 0
+                                background: Rectangle {
+                                    anchors.fill: parent
+                                    radius: 10
+                                    antialiasing: true
+                                    color: tabs.currentIndex === 1 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
+                                    border.color: tabs.currentIndex === 1 ? root.primaryColor : "transparent"
+                                    border.width: tabs.currentIndex === 1 ? 1 : 0
                                 }
-                            }
-                        }
-
-                        AppButton {
-                            themeColors: root.themeColorsObj()
-                            text: "清空"
-                            font.pixelSize: 14
-                            cornerRadius: 10
-                            implicitHeight: 42
-                            implicitWidth: 78
-                            onClicked: {
-                                globalSearch.clear()
-                                root.appCtx.bomModel.setFilterKeyword("")
-                                root.logInfo("Global search cleared")
+                                contentItem: Text {
+                                    text: root.tx("tab.diff")
+                                    color: root.textColor
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 14
+                                    font.bold: tabs.currentIndex === 1
+                                }
                             }
                         }
                     }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 42
+                        radius: 12
+                        color: root.cardColor
+                        border.color: root.borderColor
+
+                        TextField {
+                            id: globalSearch
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            placeholderText: root.tx("search.placeholder")
+                            color: root.textColor
+                            placeholderTextColor: root.mutedTextColor
+                            verticalAlignment: TextInput.AlignVCenter
+                            background: Item {}
+                            onTextChanged: {
+                                root.appCtx.bomModel.setFilterKeyword(text)
+                                root.logInfo("Global search changed: \"" + text + "\"")
+                            }
+                        }
+                    }
+
+                    AppButton {
+                        themeColors: root.themeColorsObj()
+                        text: root.tx("common.clear")
+                        font.pixelSize: 14
+                        cornerRadius: 10
+                        implicitHeight: 42
+                        implicitWidth: 78
+                        onClicked: {
+                            globalSearch.clear()
+                            root.appCtx.bomModel.setFilterKeyword("")
+                            root.logInfo("Global search cleared")
+                        }
+                    }
                 }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 12
+                color: root.cardColor
+                border.color: root.borderColor
+                clip: true
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 8
 
                 StackLayout {
                     Layout.fillWidth: true
@@ -475,6 +697,8 @@ ApplicationWindow {
                     BomPane {
                         app: root.appCtx
                         themeColors: root.themeColorsObj()
+                        uiLanguage: root.uiLanguage
+                        tx: root.tx
                         onDebugLog: function(level, message) {
                             root.appendDebugLog(level, "BOM: " + message)
                         }
@@ -488,8 +712,8 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.margins: 12
                             spacing: 8
-                            Label { text: "差异分析"; font.bold: true; color: root.textColor }
-                            Label { text: "后续接入版本对比、替代料推荐、成本变化趋势。"; color: root.mutedTextColor }
+                            Label { text: root.tx("diff.title"); font.bold: true; color: root.textColor }
+                            Label { text: root.tx("diff.todo"); color: root.mutedTextColor }
                         }
                     }
                 }
@@ -513,7 +737,7 @@ ApplicationWindow {
 
                             Label {
                                 Layout.fillWidth: true
-                                text: "Debug Console"
+                                text: root.tx("debug.console")
                                 color: root.textColor
                                 elide: Text.ElideRight
                                 font.bold: true
@@ -611,7 +835,7 @@ ApplicationWindow {
 
                             AppButton {
                                 themeColors: root.themeColorsObj()
-                                text: "Clear"
+                                text: root.tx("debug.clear")
                                 implicitHeight: 28
                                 implicitWidth: 72
                                 onClicked: {
@@ -631,6 +855,7 @@ ApplicationWindow {
                                 id: debugTextArea
                                 readOnly: true
                                 wrapMode: TextEdit.NoWrap
+                                textFormat: TextEdit.RichText
                                 text: root.debugLogText
                                 color: root.textColor
                                 selectionColor: root.primaryColor
@@ -652,4 +877,5 @@ ApplicationWindow {
             }
         }
     }
+}
 }

@@ -295,8 +295,7 @@ void BomTableModel::rebuildFilteredRows()
     const QString typeFilterValue = m_typeFilter.trimmed();
     const bool hasTypeFilter = !typeFilterValue.isEmpty();
     const bool allProjects = project.isEmpty()
-        || project.compare(QStringLiteral("All Projects"), Qt::CaseInsensitive) == 0
-        || project == QStringLiteral("全部项目");
+        || project.compare(QStringLiteral("All Projects"), Qt::CaseInsensitive) == 0;
 
     if (key.isEmpty()) {
         if (allProjects) {

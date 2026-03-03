@@ -7,6 +7,7 @@
 
 #include "BomTableModel.h"
 #include "CategoryController.h"
+#include "AppLogger.h"
 #include "ImportService.h"
 #include "ProjectController.h"
 #include "ThemeController.h"
@@ -18,6 +19,7 @@ class AppController : public QObject
     Q_PROPERTY(ProjectController *projects READ projects CONSTANT)
     Q_PROPERTY(CategoryController *categories READ categories CONSTANT)
     Q_PROPERTY(BomTableModel *bomModel READ bomModel CONSTANT)
+    Q_PROPERTY(LogRelay *logRelay READ logRelay CONSTANT)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
 
 public:
@@ -27,12 +29,16 @@ public:
     ProjectController *projects();
     CategoryController *categories();
     BomTableModel *bomModel();
+    LogRelay *logRelay();
     QString status() const;
 
     Q_INVOKABLE void cycleTheme();
     Q_INVOKABLE void importLichuang(const QUrl &fileUrl, const QString &projectName);
     Q_INVOKABLE bool deleteProject(int index);
     Q_INVOKABLE void notify(const QString &message);
+    Q_INVOKABLE void logInfo(const QString &message);
+    Q_INVOKABLE void logWarning(const QString &message);
+    Q_INVOKABLE void logError(const QString &message);
     Q_INVOKABLE QVariantList loadBomWidthRatios(const QString &layoutHash) const;
     Q_INVOKABLE void saveBomWidthRatios(const QString &layoutHash, const QVariantList &ratios);
 
@@ -48,6 +54,7 @@ private:
     ProjectController m_projects;
     CategoryController m_categories;
     BomTableModel m_bomModel;
+    LogRelay m_logRelay;
     ImportService m_importService;
     QString m_status;
     QHash<QString, QVariantList> m_bomWidthRatiosByLayout;

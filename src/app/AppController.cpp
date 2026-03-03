@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "AppLogger.h"
 
 #include <QSettings>
 #include <QUrl>
@@ -7,6 +8,7 @@
 AppController::AppController(QObject *parent)
     : QObject(parent)
 {
+    AppLogger::attachRelay(&m_logRelay);
     loadUiSettings();
 
     connect(&m_theme, &ThemeController::currentIndexChanged, this, [this] {
@@ -42,6 +44,7 @@ ThemeController *AppController::theme() { return &m_theme; }
 ProjectController *AppController::projects() { return &m_projects; }
 CategoryController *AppController::categories() { return &m_categories; }
 BomTableModel *AppController::bomModel() { return &m_bomModel; }
+LogRelay *AppController::logRelay() { return &m_logRelay; }
 QString AppController::status() const { return m_status; }
 
 void AppController::cycleTheme()
@@ -58,7 +61,7 @@ void AppController::importLichuang(const QUrl &fileUrl, const QString &projectNa
     }
 
     const QString targetProject = projectName.trimmed();
-    if (targetProject.isEmpty() || targetProject == QStringLiteral("All Projects") || targetProject == QStringLiteral("全部项目")) {
+    if (targetProject.isEmpty() || targetProject == QStringLiteral("All Projects")) {
         setStatus(QStringLiteral("Import failed: select a specific project"));
         return;
     }
@@ -88,7 +91,7 @@ bool AppController::deleteProject(int index)
     }
 
     const QString target = names[index];
-    if (target == QStringLiteral("All Projects") || target == QStringLiteral("全部项目")) {
+    if (target == QStringLiteral("All Projects")) {
         setStatus(QStringLiteral("Delete project failed: cannot delete 'All Projects'."));
         return false;
     }
@@ -107,6 +110,27 @@ void AppController::notify(const QString &message)
 {
     if (!message.trimmed().isEmpty()) {
         setStatus(message.trimmed());
+    }
+}
+
+void AppController::logInfo(const QString &message)
+{
+    if (!message.trimmed().isEmpty()) {
+        AppLogger::info(message.trimmed());
+    }
+}
+
+void AppController::logWarning(const QString &message)
+{
+    if (!message.trimmed().isEmpty()) {
+        AppLogger::warn(message.trimmed());
+    }
+}
+
+void AppController::logError(const QString &message)
+{
+    if (!message.trimmed().isEmpty()) {
+        AppLogger::error(message.trimmed());
     }
 }
 
@@ -146,6 +170,14 @@ void AppController::setStatus(const QString &status)
         return;
     }
     m_status = status;
+    const QString lower = status.toLower();
+    if (lower.contains(QStringLiteral("failed")) || lower.contains(QStringLiteral("error"))) {
+        AppLogger::error(QStringLiteral("Status: %1").arg(status));
+    } else if (lower.contains(QStringLiteral("warning")) || lower.contains(QStringLiteral("please"))) {
+        AppLogger::warn(QStringLiteral("Status: %1").arg(status));
+    } else {
+        AppLogger::info(QStringLiteral("Status: %1").arg(status));
+    }
     emit statusChanged();
 }
 

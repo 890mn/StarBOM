@@ -6,21 +6,42 @@ ToolButton {
     id: control
     required property var themeColors
     property bool accent: false
+    property url iconSource: ""
+    property int iconSize: 14
 
     implicitWidth: 28
     implicitHeight: 28
     leftPadding: 0
     rightPadding: 0
 
-    contentItem: Text {
-        text: control.text
-        color: control.enabled
-            ? (control.accent ? "#FFFFFF" : control.themeColors.text)
-            : control.themeColors.muted
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        font.pixelSize: 13
-        font.bold: true
+    contentItem: Item {
+        implicitWidth: control.iconSource.toString().length > 0 ? control.iconSize : 12
+        implicitHeight: control.iconSource.toString().length > 0 ? control.iconSize : 12
+
+        Image {
+            id: icon
+            anchors.centerIn: parent
+            width: control.iconSize
+            height: control.iconSize
+            fillMode: Image.PreserveAspectFit
+            source: control.iconSource
+            visible: control.iconSource.toString().length > 0
+            opacity: control.enabled ? 1.0 : 0.5
+            smooth: true
+        }
+
+        Text {
+            anchors.fill: parent
+            visible: !icon.visible
+            text: control.text
+            color: control.enabled
+                ? (control.accent ? "#FFFFFF" : control.themeColors.text)
+                : control.themeColors.muted
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            font.pixelSize: 13
+            font.bold: true
+        }
     }
 
     background: Rectangle {

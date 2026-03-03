@@ -13,6 +13,7 @@
 #endif
 
 #include "app/AppController.h"
+#include "app/AppLogger.h"
 
 #ifdef Q_OS_WIN
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
@@ -54,6 +55,7 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(QStringLiteral(":/assets/icon_100.png")));
     QCoreApplication::setOrganizationName(QStringLiteral("Link2BOM"));
     QCoreApplication::setApplicationName(QStringLiteral("Link2BOM"));
+    AppLogger::initialize();
 
     AppController controller;
 

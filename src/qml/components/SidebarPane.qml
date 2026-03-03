@@ -1,16 +1,19 @@
-pragma ComponentBehavior: Bound
+﻿pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtCore
 
-Rectangle {
+Item {
     id: root
     required property var app
     required property var themeColors
     required property bool pinnedTopMost
+    required property string uiLanguage
+    required property var tx
 
     signal togglePinned()
+    signal openSettings()
     signal requestImport()
     signal requestNewProject()
     signal requestRenameProject(int index, string currentName)
@@ -32,9 +35,19 @@ Rectangle {
     property var typeTreeChildren: ({})
     property var typeTreeExpanded: ({})
 
-    radius: 12
-    color: root.themeColors.card
-    border.color: root.themeColors.border
+    function txSafe(key, fallback) {
+        if (root.tx) {
+            const value = root.tx(key)
+            if (value !== key) {
+                return value
+            }
+        }
+        return fallback
+    }
+
+    function displayProjectName(name) {
+        return name === "All Projects" ? txSafe("projects.all", "All Projects") : name
+    }
 
     function primaryTint(alpha) {
         return Qt.rgba(root.themeColors.primary.r, root.themeColors.primary.g, root.themeColors.primary.b, alpha)
@@ -42,14 +55,14 @@ Rectangle {
 
     function majorKind(text) {
         const value = String(text).toLowerCase()
-        if (value.includes("resistor") || value.includes("电阻")) return "电阻/阻值件"
-        if (value.includes("capacitor") || value.includes("cap") || value.includes("电容")) return "电容"
-        if (value.includes("inductor") || value.includes("电感")) return "电感"
-        if (value.includes("ic") || value.includes("mcu") || value.includes("芯片")) return "IC/芯片"
-        if (value.includes("connector") || value.includes("连接器")) return "连接器"
-        if (value.includes("switch") || value.includes("按键")) return "开关"
-        if (value.includes("power") || value.includes("regulator") || value.includes("dc-dc")) return "电源"
-        return "其他"
+        if (value.includes("resistor")) return txSafe("type.resistor", "Resistor")
+        if (value.includes("capacitor") || value.includes("cap")) return txSafe("type.capacitor", "Capacitor")
+        if (value.includes("inductor")) return txSafe("type.inductor", "Inductor")
+        if (value.includes("ic") || value.includes("mcu")) return txSafe("type.ic", "IC/Chip")
+        if (value.includes("connector")) return txSafe("type.connector", "Connector")
+        if (value.includes("switch")) return txSafe("type.switch", "Switch")
+        if (value.includes("power") || value.includes("regulator") || value.includes("dc-dc")) return txSafe("type.power", "Power")
+        return txSafe("type.other", "Other")
     }
 
     function buildTreeByInitial(values) {
@@ -90,9 +103,9 @@ Rectangle {
     }
 
     function refreshCategoryBuckets() {
-        const brandValues = root.app.bomModel.distinctValuesByHeaderAliases(["品牌", "brand"], 2)
-        const packageValues = root.app.bomModel.distinctValuesByHeaderAliases(["封装", "package"], 4)
-        const typeValues = root.app.bomModel.distinctValuesByHeaderAliases(["商品名称", "name", "description"], 5)
+        const brandValues = root.app.bomModel.distinctValuesByHeaderAliases(["brand"], 2)
+        const packageValues = root.app.bomModel.distinctValuesByHeaderAliases(["package"], 4)
+        const typeValues = root.app.bomModel.distinctValuesByHeaderAliases(["name", "description"], 5)
 
         const brandTree = buildTreeByInitial(brandValues)
         brandTreeGroups = brandTree.groups
@@ -186,14 +199,14 @@ Rectangle {
 
                 Column {
                     width: parent.width
-                    visible: treeSection.expandedMap[groupNode.modelData]
+                    visible: !!treeSection.expandedMap[groupNode.modelData]
                     spacing: 0
                     Repeater {
                         model: treeSection.childrenMap[groupNode.modelData] ? treeSection.childrenMap[groupNode.modelData] : []
                         delegate: Rectangle {
                             id: leafNode
                             required property string modelData
-                            width: parent.width
+                            width: treeSection.width
                             height: 24
                             color: "transparent"
                             Rectangle { x: 10; y: 0; width: 1; height: parent.height; color: treeSection.borderColor }
@@ -219,27 +232,28 @@ Rectangle {
         }
     }
 
+    // Title bar
     Rectangle {
         id: headerCard
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 12
-        height: 96
+        anchors.leftMargin: 6
+        anchors.rightMargin: 6
+        //anchors.topMargin: 6
+        height: 95
         radius: 12
         color: root.themeColors.card
         border.color: root.themeColors.border
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 10
-            anchors.topMargin: 4
-            anchors.leftMargin: 10
+            anchors.margins: 6
 
             Image {
                 source: root.app.theme.currentThemeName === "Dark" ? "qrc:/assets/Github-dark.png" : "qrc:/assets/Github-light.png"
-                Layout.preferredWidth: 85
-                Layout.preferredHeight: 85
+                Layout.preferredWidth: 90
+                Layout.preferredHeight: 90
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally("https://github.com/890mn/Link2BOM") }
@@ -248,18 +262,49 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 4
-                Layout.topMargin: -8
 
                 Item {
                     Layout.preferredWidth: 190
-                    Layout.preferredHeight: 34
+                    Layout.preferredHeight: 20
                     Label { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "Link2BOM"; font.family: audioWide.name; font.pixelSize: 28; font.bold: true; color: root.themeColors.primary }
                     Image { visible: root.pinnedTopMost; source: root.app.theme.currentThemeName === "Dark" ? "qrc:/assets/pin-dark.png" : "qrc:/assets/pin-light.png"; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 4; width: 16; height: 16; fillMode: Image.PreserveAspectFit }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.togglePinned() }
                 }
 
+                Label {
+                    text: "Settings / Themes / V1"
+                    color: root.themeColors.muted
+                    font.pixelSize: 16
+                    font.family: audioWide.name
+                    MouseArea { anchors.fill: parent; onPressAndHold: root.toggleDebugPanel() }
+                }
+
                 RowLayout {
                     spacing: 8
+                    Layout.topMargin: -2
+
+                    Item {
+                        Layout.preferredWidth: 18
+                        Layout.preferredHeight: 18
+
+                        Image {
+                            anchors.fill: parent
+                            fillMode: Image.PreserveAspectFit
+                            source: root.app.theme.currentThemeName === "Dark"
+                                ? "qrc:/assets/setting-dark.png"
+                                : "qrc:/assets/setting-light.png"
+                            smooth: true
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openSettings()
+                        }
+                    }
+
+                    //Item { Layout.preferredWidth: 57 }
+
                     Repeater {
                         model: 3
                         delegate: Rectangle {
@@ -273,50 +318,56 @@ Rectangle {
                             MouseArea { anchors.fill: parent; onClicked: root.app.theme.currentIndex = themeDot.index }
                         }
                     }
-                    Label { text: "890mn"; color: root.themeColors.muted; font.pixelSize: 12; MouseArea { anchors.fill: parent; onPressAndHold: root.toggleDebugPanel() } }
-                    Label { text: "v0.0.4"; color: root.themeColors.muted; font.pixelSize: 12 }
                 }
             }
         }
     }
 
-    Flickable {
+    // left all
+    Item {
+        id: modulesArea
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: headerCard.bottom
         anchors.bottom: parent.bottom
-        anchors.margins: 12
+        anchors.leftMargin: 6
+        anchors.rightMargin: 6
         anchors.topMargin: 8
-        clip: true
-        contentWidth: width
-        contentHeight: modulesColumn.childrenRect.height + 12
-        boundsBehavior: Flickable.StopAtBounds
+        //anchors.bottomMargin: 4
 
-        Column {
-            id: modulesColumn
-            width: parent.width
-            spacing: 10
+        Flickable {
+            id: modulesFlick
+            anchors.fill: parent
+            clip: true
+            contentWidth: width
+            contentHeight: modulesColumn.childrenRect.height + 12
+            boundsBehavior: Flickable.StopAtBounds
 
-            SidebarModuleCard {
-                width: modulesColumn.width
-                title: "Import"
-                themeColors: root.themeColors
-                darkTheme: root.app.theme.currentThemeName === "Dark"
-                collapsed: sidebarSettings.importCollapsed
-                normalHeight: 176
-                onCollapsedChanged: sidebarSettings.importCollapsed = collapsed
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 8
-                    AppButton { themeColors: root.themeColors; text: "LCSC Import (XLS)"; Layout.fillWidth: true; onClicked: root.requestImport() }
-                    AppButton { themeColors: root.themeColors; text: "Import XLS/XLSX"; Layout.fillWidth: true; onClicked: root.requestImport() }
-                    AppButton { themeColors: root.themeColors; text: "OCR Import (Later)"; Layout.fillWidth: true; onClicked: root.app.notify("OCR flow is not connected yet.") }
+            Column {
+                id: modulesColumn
+                width: modulesFlick.width
+                spacing: 10
+
+                SidebarModuleCard {
+                    width: modulesColumn.width
+                    title: root.txSafe("sidebar.import", "Import")
+                    themeColors: root.themeColors
+                    darkTheme: root.app.theme.currentThemeName === "Dark"
+                    collapsed: sidebarSettings.importCollapsed
+                    normalHeight: 176
+                    onCollapsedChanged: sidebarSettings.importCollapsed = collapsed
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 8
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.import.lcsc", "LCSC Import (XLS)"); Layout.fillWidth: true; onClicked: root.requestImport() }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.import.sheet", "Import XLS/XLSX"); Layout.fillWidth: true; onClicked: root.requestImport() }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.import.ocr", "OCR Import (Later)"); Layout.fillWidth: true; onClicked: root.app.notify(root.txSafe("sidebar.import.ocr.todo", "OCR flow is not connected yet.")) }
+                    }
                 }
-            }
 
             SidebarModuleCard {
                 width: modulesColumn.width
-                title: "Export"
+                title: root.txSafe("sidebar.export", "Export")
                 themeColors: root.themeColors
                 darkTheme: root.app.theme.currentThemeName === "Dark"
                 collapsed: sidebarSettings.exportCollapsed
@@ -325,13 +376,13 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 8
-                    AppButton { themeColors: root.themeColors; text: "Export CSV"; Layout.fillWidth: true; onClicked: root.app.notify("CSV export is triggered.") }
+                    AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.export.csv", "Export CSV"); Layout.fillWidth: true; onClicked: root.app.notify(root.txSafe("sidebar.export.todo", "CSV export is triggered.")) }
                 }
             }
 
             SidebarModuleCard {
                 width: modulesColumn.width
-                title: "Projects"
+                title: root.txSafe("sidebar.projects", "Projects")
                 themeColors: root.themeColors
                 darkTheme: root.app.theme.currentThemeName === "Dark"
                 collapsed: sidebarSettings.projectsCollapsed
@@ -351,20 +402,24 @@ Rectangle {
                             width: ListView.view.width
                             leftPadding: 14
                             rightPadding: 8
-                            text: root.app.projects.model.data(root.app.projects.model.index(projectDelegate.index, 0), Qt.DisplayRole) ?? ""
+                            property string projectName: root.app.projects.model.data(root.app.projects.model.index(projectDelegate.index, 0), Qt.DisplayRole) ?? ""
+                            text: root.displayProjectName(projectName)
                             contentItem: Text { anchors.fill: parent; anchors.leftMargin: 18; text: projectDelegate.text; color: root.themeColors.text; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
                             background: Rectangle {
-                                color: root.app.projects.selectedProject === projectDelegate.text ? root.primaryTint(0.14) : "transparent"
-                                Rectangle { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: root.app.projects.selectedProject === projectDelegate.text ? 5 : 2; height: parent.height * 0.72; radius: 2; color: root.app.projects.selectedProject === projectDelegate.text ? root.themeColors.primary : "transparent" }
+                                color: root.app.projects.selectedProject === projectDelegate.projectName ? root.primaryTint(0.14) : "transparent"
+                                Rectangle { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: root.app.projects.selectedProject === projectDelegate.projectName ? 5 : 2; height: parent.height * 0.72; radius: 2; color: root.app.projects.selectedProject === projectDelegate.projectName ? root.themeColors.primary : "transparent" }
                             }
-                            onClicked: { projectList.currentIndex = projectDelegate.index; root.app.projects.selectedProject = text }
+                            onClicked: {
+                                projectList.currentIndex = projectDelegate.index
+                                root.app.projects.selectedProject = projectDelegate.projectName
+                            }
                         }
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        AppButton { themeColors: root.themeColors; text: "New"; Layout.fillWidth: true; onClicked: root.requestNewProject() }
-                        AppButton { themeColors: root.themeColors; text: "Rename"; Layout.fillWidth: true; onClicked: root.requestRenameProject(projectList.currentIndex, root.app.projects.selectedProject) }
-                        AppButton { themeColors: root.themeColors; text: "Delete"; Layout.fillWidth: true; onClicked: root.requestDeleteProject(projectList.currentIndex, root.app.projects.selectedProject) }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.new", "New"); Layout.fillWidth: true; onClicked: root.requestNewProject() }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.rename", "Rename"); Layout.fillWidth: true; onClicked: root.requestRenameProject(projectList.currentIndex, root.app.projects.selectedProject) }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.delete", "Delete"); Layout.fillWidth: true; onClicked: root.requestDeleteProject(projectList.currentIndex, root.app.projects.selectedProject) }
                     }
                 }
             }
@@ -372,7 +427,7 @@ Rectangle {
             SidebarModuleCard {
                 id: categoriesCard
                 width: modulesColumn.width
-                title: "Categories"
+                title: root.txSafe("sidebar.categories", "Categories")
                 themeColors: root.themeColors
                 darkTheme: root.app.theme.currentThemeName === "Dark"
                 collapsed: sidebarSettings.categoriesCollapsed
@@ -384,13 +439,13 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        AppButton { themeColors: root.themeColors; text: "Auto Height"; Layout.fillWidth: true; accent: sidebarSettings.categoriesAutoHeight; onClicked: sidebarSettings.categoriesAutoHeight = true }
-                        AppButton { themeColors: root.themeColors; text: "Custom Height"; Layout.fillWidth: true; accent: !sidebarSettings.categoriesAutoHeight; onClicked: sidebarSettings.categoriesAutoHeight = false }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.height.auto", "Auto Height"); Layout.fillWidth: true; accent: sidebarSettings.categoriesAutoHeight; onClicked: sidebarSettings.categoriesAutoHeight = true }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.height.custom", "Custom Height"); Layout.fillWidth: true; accent: !sidebarSettings.categoriesAutoHeight; onClicked: sidebarSettings.categoriesAutoHeight = false }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         visible: !sidebarSettings.categoriesAutoHeight
-                        Label { text: "Height: " + sidebarSettings.categoriesCustomHeight; color: root.themeColors.text; font.pixelSize: 12 }
+                        Label { text: root.txSafe("sidebar.height", "Height") + ": " + sidebarSettings.categoriesCustomHeight; color: root.themeColors.text; font.pixelSize: 12 }
                         Slider {
                             Layout.fillWidth: true
                             from: 320; to: 860; stepSize: 10
@@ -426,9 +481,9 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        AppButton { themeColors: root.themeColors; text: "New"; Layout.fillWidth: true; onClicked: root.requestNewCategory() }
-                        AppButton { themeColors: root.themeColors; text: "Rename"; Layout.fillWidth: true; onClicked: root.requestRenameCategory(root.selectedCategoryIndex, root.selectedCategoryName) }
-                        AppButton { themeColors: root.themeColors; text: "Delete"; Layout.fillWidth: true; onClicked: root.requestDeleteCategory(root.selectedCategoryIndex, root.selectedCategoryName) }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.new", "New"); Layout.fillWidth: true; onClicked: root.requestNewCategory() }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.rename", "Rename"); Layout.fillWidth: true; onClicked: root.requestRenameCategory(root.selectedCategoryIndex, root.selectedCategoryName) }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("common.delete", "Delete"); Layout.fillWidth: true; onClicked: root.requestDeleteCategory(root.selectedCategoryIndex, root.selectedCategoryName) }
                     }
 
                     ScrollView {
@@ -440,7 +495,7 @@ Rectangle {
                             width: categoriesCard.width - 36
                             spacing: 8
                             TreeSection {
-                                title: "Brand"
+                                title: root.txSafe("tree.brand", "Brand")
                                 groups: root.brandTreeGroups
                                 childrenMap: root.brandTreeChildren
                                 expandedMap: root.brandTreeExpanded
@@ -456,7 +511,7 @@ Rectangle {
                                 }
                             }
                             TreeSection {
-                                title: "Package"
+                                title: root.txSafe("tree.package", "Package")
                                 groups: root.packageTreeGroups
                                 childrenMap: root.packageTreeChildren
                                 expandedMap: root.packageTreeExpanded
@@ -472,7 +527,7 @@ Rectangle {
                                 }
                             }
                             TreeSection {
-                                title: "Type"
+                                title: root.txSafe("tree.type", "Type")
                                 groups: root.typeTreeGroups
                                 childrenMap: root.typeTreeChildren
                                 expandedMap: root.typeTreeExpanded
@@ -495,12 +550,13 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        AppButton { themeColors: root.themeColors; text: "Clear Type Filter"; Layout.fillWidth: true; onClicked: root.app.bomModel.clearTypeFilter() }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("tree.type.clear", "Clear Type Filter"); Layout.fillWidth: true; onClicked: root.app.bomModel.clearTypeFilter() }
                     }
                 }
             }
 
-            Item { width: 1; height: 12 }
+                Item { width: 1; height: 12 }
+            }
         }
     }
 }

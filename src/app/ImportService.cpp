@@ -1,14 +1,12 @@
 #include "ImportService.h"
+#include "AppLogger.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QDateTime>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
-#include <QStringConverter>
-#include <QTextStream>
 #include <optional>
 
 namespace {
@@ -16,24 +14,6 @@ struct PythonCommand {
     QString program;
     QStringList prefixArgs;
 };
-
-QString importLogPath()
-{
-    const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    return QDir(tempDir).filePath(QStringLiteral("Link2BOM-import.log"));
-}
-
-void appendImportLog(const QString &message)
-{
-    QFile file(importLogPath());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        return;
-    }
-
-    QTextStream out(&file);
-    out.setEncoding(QStringConverter::Utf8);
-    out << QDateTime::currentDateTime().toString(Qt::ISODate) << " | " << message << '\n';
-}
 
 std::optional<PythonCommand> detectPythonCommand()
 {
@@ -104,11 +84,11 @@ ImportService::ImportService(QObject *parent)
 
 ImportResult ImportService::importLichuangSpreadsheet(const QString &filePath, const QString &projectName) const
 {
-    appendImportLog(QStringLiteral("Import request: file=%1, project=%2").arg(filePath, projectName));
+    AppLogger::info(QStringLiteral("Import request: file=%1, project=%2").arg(filePath, projectName));
     ImportResult result;
     if (filePath.isEmpty()) {
         result.error = QStringLiteral("File path is empty.");
-        appendImportLog(result.error);
+        AppLogger::error(result.error);
         return result;
     }
 
@@ -116,16 +96,21 @@ ImportResult ImportService::importLichuangSpreadsheet(const QString &filePath, c
     if (!filePath.endsWith(QStringLiteral(".csv"), Qt::CaseInsensitive)) {
         QString error;
         if (!convertSpreadsheetToCsv(filePath, &csvPath, &error)) {
-            result.error = QStringLiteral("%1\nSee import log: %2").arg(error, importLogPath());
-            appendImportLog(QStringLiteral("convertSpreadsheetToCsv failed: %1").arg(error));
+            result.error = QStringLiteral("%1\nSee import log: %2").arg(error, AppLogger::logFilePath());
+            AppLogger::error(QStringLiteral("convertSpreadsheetToCsv failed: %1").arg(error));
             return result;
         }
     }
 
     result = parseLichuangCsv(csvPath, projectName);
     if (!result.ok) {
-        appendImportLog(QStringLiteral("parseLichuangCsv failed: %1").arg(result.error));
-        result.error = QStringLiteral("%1\nSee import log: %2").arg(result.error, importLogPath());
+        AppLogger::error(QStringLiteral("parseLichuangCsv failed: %1").arg(result.error));
+        result.error = QStringLiteral("%1\nSee import log: %2").arg(result.error, AppLogger::logFilePath());
+    } else {
+        AppLogger::info(QStringLiteral("Import success: file=%1 rows=%2 project=%3")
+                            .arg(filePath)
+                            .arg(result.rows.size())
+                            .arg(projectName));
     }
     return result;
 }
@@ -342,23 +327,23 @@ bool ImportService::convertSpreadsheetToCsv(const QString &inputPath, QString *o
             }
             return true;
         }
-        appendImportLog(QStringLiteral("Python conversion failed: %1").arg(pythonError));
+        AppLogger::warn(QStringLiteral("Python conversion failed: %1").arg(pythonError));
     }
 
     auto runConverter = [&](const QString &program, const QStringList &args) -> bool {
         QProcess process;
         process.start(program, args);
         if (!process.waitForStarted(3000)) {
-            appendImportLog(QStringLiteral("Converter start failed: %1 %2").arg(program, args.join(' ')));
+            AppLogger::warn(QStringLiteral("Converter start failed: %1 %2").arg(program, args.join(' ')));
             return false;
         }
         process.waitForFinished(40000);
         const bool ok = process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
         if (!ok) {
-            appendImportLog(QStringLiteral("Converter failed: %1 exit=%2 stderr=%3")
-                            .arg(program)
-                            .arg(process.exitCode())
-                            .arg(QString::fromUtf8(process.readAllStandardError()).trimmed()));
+            AppLogger::warn(QStringLiteral("Converter failed: %1 exit=%2 stderr=%3")
+                                .arg(program)
+                                .arg(process.exitCode())
+                                .arg(QString::fromUtf8(process.readAllStandardError()).trimmed()));
         }
         return ok;
     };
@@ -471,7 +456,8 @@ with open(out_path, 'w', encoding='utf-8', newline='') as fp:
         if (error) {
             *error = QStringLiteral("Python is not available; cannot parse .xlsx in built-in mode. %1").arg(launchError);
         }
-        appendImportLog(QStringLiteral("convertXlsxToCsvWithPython launch/run failed: %1, stderr=%2").arg(launchError, stdErr));
+        AppLogger::warn(QStringLiteral("convertXlsxToCsvWithPython launch/run failed: %1, stderr=%2")
+                            .arg(launchError, stdErr));
         return false;
     }
 
@@ -482,7 +468,7 @@ with open(out_path, 'w', encoding='utf-8', newline='') as fp:
             : QStringLiteral("Built-in .xlsx parsing failed: %1").arg(stdErr);
     }
     if (!ok) {
-        appendImportLog(QStringLiteral("convertXlsxToCsvWithPython output file missing: %1").arg(outputPath));
+        AppLogger::warn(QStringLiteral("convertXlsxToCsvWithPython output file missing: %1").arg(outputPath));
     }
     return ok;
 }
@@ -530,7 +516,8 @@ with open(out_path, 'w', encoding='utf-8', newline='') as fp:
         if (error) {
             *error = QStringLiteral("Python is not available; cannot parse .xls. %1").arg(launchError);
         }
-        appendImportLog(QStringLiteral("convertExcelToCsvWithPython launch/run failed: %1, stderr=%2").arg(launchError, stdErr));
+        AppLogger::warn(QStringLiteral("convertExcelToCsvWithPython launch/run failed: %1, stderr=%2")
+                            .arg(launchError, stdErr));
         return false;
     }
 
@@ -547,7 +534,7 @@ with open(out_path, 'w', encoding='utf-8', newline='') as fp:
         }
     }
     if (!ok) {
-        appendImportLog(QStringLiteral("convertExcelToCsvWithPython output file missing: %1").arg(outputPath));
+        AppLogger::warn(QStringLiteral("convertExcelToCsvWithPython output file missing: %1").arg(outputPath));
     }
     return ok;
 }

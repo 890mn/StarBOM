@@ -2,3 +2,4 @@ build/
 dist/
 .qtcreator/
 .qmlls.ini
+TODO.md
