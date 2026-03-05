@@ -1,6 +1,7 @@
 #include "BomTableModel.h"
 
 #include <QHash>
+#include <QRegularExpression>
 #include <QSet>
 #include <QVariantMap>
 #include <algorithm>
@@ -267,7 +268,30 @@ void BomTableModel::removeRowsByProject(const QString &projectName)
 QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QString &groupMode) const
 {
     QVariantList result;
-    if (m_sourceHeaders.isEmpty() || m_filteredRows.isEmpty()) {
+    if (m_sourceHeaders.isEmpty() || m_sourceRows.isEmpty()) {
+        return result;
+    }
+
+    const QString project = m_projectFilter.trimmed();
+    const QString typeFilterValue = m_typeFilter.trimmed();
+    const bool allProjects = project.isEmpty() || project.compare(QStringLiteral("All Projects"), Qt::CaseInsensitive) == 0;
+    const bool hasTypeFilter = !typeFilterValue.isEmpty();
+
+    QList<QStringList> scopedRows;
+    for (const QStringList &row : m_sourceRows) {
+        if (!allProjects) {
+            if (row.isEmpty() || row.first().trimmed() != project) {
+                continue;
+            }
+        }
+        if (hasTypeFilter) {
+            if (row.size() <= 5 || !row[5].contains(typeFilterValue, Qt::CaseInsensitive)) {
+                continue;
+            }
+        }
+        scopedRows.append(row);
+    }
+    if (scopedRows.isEmpty()) {
         return result;
     }
 
@@ -275,10 +299,10 @@ QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QSt
     const QString mode = groupMode.trimmed().toLower();
     if (mode == QStringLiteral("project")) {
         keyColumn = 0;
-    } else if (mode == QStringLiteral("name")) {
-        keyColumn = findSourceColumnByAliases(m_sourceHeaders, {"name", "description", "item"}, 5);
     } else if (mode == QStringLiteral("package")) {
         keyColumn = findSourceColumnByAliases(m_sourceHeaders, {"package", "footprint"}, 4);
+    } else if (mode == QStringLiteral("brand")) {
+        keyColumn = findSourceColumnByAliases(m_sourceHeaders, {"brand", "manufacturer", "mfr"}, 2);
     } else {
         keyColumn = findSourceColumnByAliases(m_sourceHeaders, {"part", "pn", "mpn", "item"}, 3);
     }
@@ -288,8 +312,8 @@ QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QSt
     }
 
     QHash<QString, QList<int>> groupRows;
-    for (int rowIndex = 0; rowIndex < m_filteredRows.size(); ++rowIndex) {
-        const QStringList &row = m_filteredRows[rowIndex];
+    for (int rowIndex = 0; rowIndex < scopedRows.size(); ++rowIndex) {
+        const QStringList &row = scopedRows[rowIndex];
         if (keyColumn >= row.size()) {
             continue;
         }
@@ -325,7 +349,7 @@ QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QSt
             }
             QSet<QString> uniq;
             for (int idx : rows) {
-                const QStringList &r = m_filteredRows[idx];
+                const QStringList &r = scopedRows[idx];
                 if (col < r.size()) {
                     const QString value = r[col].trimmed();
                     if (!value.isEmpty()) {
@@ -339,10 +363,6 @@ QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QSt
                 std::sort(values.begin(), values.end(), [](const QString &a, const QString &b) {
                     return QString::localeAwareCompare(a, b) < 0;
                 });
-                if (values.size() > 3) {
-                    values = values.mid(0, 3);
-                    values.append(QStringLiteral("..."));
-                }
                 QVariantMap fieldItem;
                 fieldItem.insert(QStringLiteral("field"), m_sourceHeaders[col]);
                 fieldItem.insert(QStringLiteral("values"), QVariant::fromValue(values));
@@ -400,6 +420,172 @@ QVariantList BomTableModel::analyzeDifferences(const QString &keyword, const QSt
     }
 
     return result;
+}
+
+QVariantMap BomTableModel::buildAnalytics(const QString &groupMode) const
+{
+    QVariantMap out;
+    if (m_sourceHeaders.isEmpty() || m_sourceRows.isEmpty()) {
+        return out;
+    }
+
+    const QString project = m_projectFilter.trimmed();
+    const QString typeFilterValue = m_typeFilter.trimmed();
+    const bool allProjects = project.isEmpty() || project.compare(QStringLiteral("All Projects"), Qt::CaseInsensitive) == 0;
+    const bool hasTypeFilter = !typeFilterValue.isEmpty();
+
+    QList<QStringList> scopedRows;
+    scopedRows.reserve(m_sourceRows.size());
+    for (const QStringList &row : m_sourceRows) {
+        if (!allProjects) {
+            if (row.isEmpty() || row.first().trimmed() != project) {
+                continue;
+            }
+        }
+        if (hasTypeFilter) {
+            if (row.size() <= 5 || !row[5].contains(typeFilterValue, Qt::CaseInsensitive)) {
+                continue;
+            }
+        }
+        scopedRows.append(row);
+    }
+    if (scopedRows.isEmpty()) {
+        return out;
+    }
+
+    int groupColumn = 0;
+    const QString mode = groupMode.trimmed().toLower();
+    if (mode == QStringLiteral("package")) {
+        groupColumn = findSourceColumnByAliases(m_sourceHeaders, {"package", "footprint"}, 4);
+    } else if (mode == QStringLiteral("brand")) {
+        groupColumn = findSourceColumnByAliases(m_sourceHeaders, {"brand", "manufacturer", "mfr"}, 2);
+    } else {
+        groupColumn = 0;
+    }
+    if (groupColumn < 0 || groupColumn >= m_sourceHeaders.size()) {
+        groupColumn = 0;
+    }
+
+    const int partColumn = findSourceColumnByAliases(m_sourceHeaders, {"part", "pn", "mpn", "item"}, 3);
+    const int qtyColumn = findSourceColumnByAliases(m_sourceHeaders, {"qty", "quantity", "q'ty", "amount"}, -1);
+
+    QHash<QString, int> groupCounts;
+    QHash<QString, int> partCounts;
+    QSet<QString> uniqueParts;
+    int missingPartCount = 0;
+    int lowQtyCount = 0;
+
+    const QRegularExpression nonNumeric(QStringLiteral("[^0-9.\\-]"));
+    for (const QStringList &row : scopedRows) {
+        const QString groupName = (groupColumn < row.size() ? row[groupColumn].trimmed() : QString());
+        groupCounts[groupName.isEmpty() ? QStringLiteral("(Empty)") : groupName] += 1;
+
+        QString part = (partColumn >= 0 && partColumn < row.size()) ? row[partColumn].trimmed() : QString();
+        if (part.isEmpty()) {
+            missingPartCount += 1;
+        } else {
+            uniqueParts.insert(part);
+            partCounts[part] += 1;
+        }
+
+        if (qtyColumn >= 0 && qtyColumn < row.size()) {
+            QString qtyText = row[qtyColumn].trimmed();
+            qtyText.remove(nonNumeric);
+            bool ok = false;
+            const double qty = qtyText.toDouble(&ok);
+            if (ok && qty <= 1.0) {
+                lowQtyCount += 1;
+            }
+        }
+    }
+
+    int duplicatePartCount = 0;
+    for (auto it = partCounts.cbegin(); it != partCounts.cend(); ++it) {
+        if (it.value() > 1) {
+            duplicatePartCount += it.value();
+        }
+    }
+
+    struct GroupItem {
+        QString name;
+        int count = 0;
+    };
+    QList<GroupItem> sorted;
+    sorted.reserve(groupCounts.size());
+    for (auto it = groupCounts.cbegin(); it != groupCounts.cend(); ++it) {
+        GroupItem item;
+        item.name = it.key();
+        item.count = it.value();
+        sorted.append(item);
+    }
+    std::sort(sorted.begin(), sorted.end(), [](const GroupItem &a, const GroupItem &b) {
+        if (a.count != b.count) {
+            return a.count > b.count;
+        }
+        return QString::localeAwareCompare(a.name, b.name) < 0;
+    });
+
+    QVariantList groupItems;
+    const int total = scopedRows.size();
+    const int maxItems = 10;
+    for (int i = 0; i < qMin(sorted.size(), maxItems); ++i) {
+        QVariantMap item;
+        item.insert(QStringLiteral("name"), sorted[i].name);
+        item.insert(QStringLiteral("count"), sorted[i].count);
+        item.insert(QStringLiteral("ratio"), total > 0 ? double(sorted[i].count) / double(total) : 0.0);
+        groupItems.append(item);
+    }
+
+    const int healthyCount = qMax(0, total - lowQtyCount - missingPartCount);
+    const int issueCount = qMin(total, lowQtyCount + missingPartCount);
+    const int duplicatePenalty = qMin(25, duplicatePartCount * 2);
+    const int missingPenalty = qMin(40, (missingPartCount * 100) / qMax(1, total));
+    const int lowQtyPenalty = qMin(30, (lowQtyCount * 100) / qMax(1, total));
+    const int healthScore = qMax(0, 100 - duplicatePenalty - missingPenalty - lowQtyPenalty);
+
+    QVariantList pieItems;
+    {
+        QVariantMap a;
+        a.insert(QStringLiteral("label"), QStringLiteral("Healthy"));
+        a.insert(QStringLiteral("value"), healthyCount);
+        a.insert(QStringLiteral("color"), QStringLiteral("#10B981"));
+        pieItems.append(a);
+        QVariantMap b;
+        b.insert(QStringLiteral("label"), QStringLiteral("At Risk"));
+        b.insert(QStringLiteral("value"), qMax(0, lowQtyCount));
+        b.insert(QStringLiteral("color"), QStringLiteral("#F59E0B"));
+        pieItems.append(b);
+        QVariantMap c;
+        c.insert(QStringLiteral("label"), QStringLiteral("Missing Key"));
+        c.insert(QStringLiteral("value"), qMax(0, missingPartCount));
+        c.insert(QStringLiteral("color"), QStringLiteral("#EF4444"));
+        pieItems.append(c);
+    }
+
+    QStringList suggestions;
+    if (missingPartCount > 0) {
+        suggestions.append(QStringLiteral("Some rows miss key part numbers; prioritize fixing identification fields."));
+    }
+    if (lowQtyCount > 0) {
+        suggestions.append(QStringLiteral("Several items have low quantity (<=1); review replenishment priority."));
+    }
+    if (duplicatePartCount > 0) {
+        suggestions.append(QStringLiteral("Duplicate part definitions detected; consider consolidating equivalent entries."));
+    }
+    if (suggestions.isEmpty()) {
+        suggestions.append(QStringLiteral("Inventory structure looks stable. Keep periodic checks before procurement."));
+    }
+
+    out.insert(QStringLiteral("groupItems"), groupItems);
+    out.insert(QStringLiteral("pieItems"), pieItems);
+    out.insert(QStringLiteral("totalRows"), total);
+    out.insert(QStringLiteral("uniquePartCount"), uniqueParts.size());
+    out.insert(QStringLiteral("lowQtyCount"), lowQtyCount);
+    out.insert(QStringLiteral("missingPartCount"), missingPartCount);
+    out.insert(QStringLiteral("duplicatePartCount"), duplicatePartCount);
+    out.insert(QStringLiteral("healthScore"), healthScore);
+    out.insert(QStringLiteral("suggestions"), suggestions);
+    return out;
 }
 
 void BomTableModel::setSourceData(const QStringList &headers, const QList<QStringList> &rows)

@@ -15,6 +15,7 @@ Item {
     signal togglePinned()
     signal openSettings()
     signal requestImport()
+    signal requestExport()
     signal requestNewProject()
     signal requestRenameProject(int index, string currentName)
     signal requestDeleteProject(int index, string currentName)
@@ -376,7 +377,7 @@ Item {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 8
-                    AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.export.csv", "Export CSV"); Layout.fillWidth: true; onClicked: root.app.notify(root.txSafe("sidebar.export.todo", "CSV export is triggered.")) }
+                        AppButton { themeColors: root.themeColors; text: root.txSafe("sidebar.export.csv", "Export CSV"); Layout.fillWidth: true; onClicked: root.requestExport() }
                 }
             }
 

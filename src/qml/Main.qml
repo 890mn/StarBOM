@@ -30,13 +30,16 @@ ApplicationWindow {
     property string uiLanguage: uiSettings.language
     property string bomSearchText: ""
     property string diffSearchText: ""
-    property string diffGroupMode: "part"
+    property string diffGroupMode: "project"
+    property string diffViewMode: "list"
     property var diffItems: []
+    property var diffStats: ({})
     property bool syncingTopSearch: false
     property var textZh: ({
         "dialog.selectImportProject": "选择导入项目",
         "dialog.newProjectOr": "或新建项目",
         "dialog.selectLichuangFile": "选择立创导出文件",
+        "dialog.selectExportCsvFile": "选择导出 CSV 文件",
         "dialog.inputName": "请输入名称",
         "dialog.newProject": "新建项目",
         "dialog.renameProject": "重命名项目",
@@ -51,17 +54,28 @@ ApplicationWindow {
         "tab.diff": "差异分析",
         "search.placeholder": "全文搜索（料号/位号/规格/备注）",
         "common.clear": "清空",
+        "common.ok": "确定",
+        "common.cancel": "取消",
         "diff.title": "差异分析",
         "diff.todo": "后续接入版本对比、替代料推荐、成本变化趋势。",
         "diff.search.placeholder": "搜索差异（关键料号/字段/值）",
         "diff.group.by": "分组",
-        "diff.group.part": "按料号",
-        "diff.group.name": "按名称",
-        "diff.group.package": "按封装",
         "diff.group.project": "按项目",
+        "diff.group.package": "按封装",
+        "diff.group.brand": "按品牌",
         "diff.result.count": "差异条目",
         "diff.changed.fields": "差异字段",
         "diff.noresult": "未发现差异条目",
+        "diff.view.list": "差异列表",
+        "diff.view.bar": "柱状图",
+        "diff.view.pie": "饼状图",
+        "diff.health.score": "库存健康度",
+        "diff.health.total": "总条目",
+        "diff.health.unique": "唯一料号",
+        "diff.health.lowqty": "低库存",
+        "diff.health.missing": "缺失关键字段",
+        "diff.health.duplicate": "重复料号",
+        "diff.suggestions": "建议",
         "debug.console": "调试控制台",
         "debug.clear": "清空",
         "settings.title": "设置",
@@ -109,6 +123,7 @@ ApplicationWindow {
         "dialog.selectImportProject": "Select Import Project",
         "dialog.newProjectOr": "Or create new project",
         "dialog.selectLichuangFile": "Select LCSC export file",
+        "dialog.selectExportCsvFile": "Select CSV export file",
         "dialog.inputName": "Please enter a name",
         "dialog.newProject": "New Project",
         "dialog.renameProject": "Rename Project",
@@ -123,17 +138,28 @@ ApplicationWindow {
         "tab.diff": "Diff Analysis",
         "search.placeholder": "Global search (part/ref/spec/note)",
         "common.clear": "Clear",
+        "common.ok": "OK",
+        "common.cancel": "Cancel",
         "diff.title": "Diff Analysis",
         "diff.todo": "Version diff, alternates suggestion, and cost trend will be added later.",
         "diff.search.placeholder": "Search diffs (key part/field/value)",
         "diff.group.by": "Group By",
-        "diff.group.part": "By Part",
-        "diff.group.name": "By Name",
-        "diff.group.package": "By Package",
         "diff.group.project": "By Project",
+        "diff.group.package": "By Package",
+        "diff.group.brand": "By Brand",
         "diff.result.count": "Diff Items",
         "diff.changed.fields": "Changed Fields",
         "diff.noresult": "No diff items found",
+        "diff.view.list": "Diff List",
+        "diff.view.bar": "Bar Chart",
+        "diff.view.pie": "Pie Chart",
+        "diff.health.score": "Inventory Health",
+        "diff.health.total": "Total Rows",
+        "diff.health.unique": "Unique Parts",
+        "diff.health.lowqty": "Low Stock",
+        "diff.health.missing": "Missing Key Fields",
+        "diff.health.duplicate": "Duplicate Parts",
+        "diff.suggestions": "Suggestions",
         "debug.console": "Debug Console",
         "debug.clear": "Clear",
         "settings.title": "Settings",
@@ -257,6 +283,7 @@ ApplicationWindow {
     function logError(message) { root.appCtx.logError(String(message)) }
     function refreshDiffAnalysis() {
         diffItems = root.appCtx.bomModel.analyzeDifferences(diffSearchText, diffGroupMode)
+        diffStats = root.appCtx.bomModel.buildAnalytics(diffGroupMode)
     }
 
     onShowInfoLogsChanged: rebuildDebugLogText()
@@ -311,52 +338,98 @@ ApplicationWindow {
     palette.placeholderText: mutedTextColor
     palette.mid: borderColor
 
-    Dialog {
+    Popup {
         id: projectForImportDialog
-        title: root.tx("dialog.selectImportProject")
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        focus: true
         width: 420
+        implicitHeight: importDialogContent.implicitHeight + 20
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
         parent: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape
-        padding: 14
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 10
 
         background: Rectangle {
-            radius: 14
-            color: root.cardColor
+            radius: 12
+            color: root.subtleColor
             border.color: root.borderColor
         }
 
         ColumnLayout {
+            id: importDialogContent
             anchors.fill: parent
             spacing: 10
+            Label {
+                text: root.tx("dialog.selectImportProject")
+                color: root.textColor
+                font.bold: true
+            }
             ComboBox {
                 id: projectCombo
                 Layout.fillWidth: true
                 model: root.appCtx.projects.projectNames(false)
+                implicitHeight: 36
+                font.pixelSize: 13
+                contentItem: Text {
+                    leftPadding: 10
+                    rightPadding: 24
+                    text: projectCombo.displayText
+                    color: root.textColor
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                background: Rectangle {
+                    radius: 10
+                    color: root.cardColor
+                    border.color: root.borderColor
+                }
             }
             TextField {
                 id: newProjectField
                 Layout.fillWidth: true
                 placeholderText: root.tx("dialog.newProjectOr")
+                implicitHeight: 36
+                color: root.textColor
+                placeholderTextColor: root.mutedTextColor
+                selectionColor: root.primaryColor
+                selectedTextColor: "#FFFFFF"
+                background: Rectangle {
+                    radius: 10
+                    color: root.cardColor
+                    border.color: root.borderColor
+                }
             }
-        }
 
-        onAccepted: {
-            const created = newProjectField.text.trim()
-            if (created.length > 0) {
-                root.appCtx.projects.addProject(created)
-                root.activeProjectForImport = created
-                root.logInfo("Create project for import: " + created)
-            } else {
-                root.activeProjectForImport = projectCombo.currentText
-                root.logInfo("Use existing project for import: " + root.activeProjectForImport)
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.cancel")
+                    onClicked: projectForImportDialog.close()
+                }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.ok")
+                    accent: true
+                    onClicked: {
+                        const created = newProjectField.text.trim()
+                        if (created.length > 0) {
+                            root.appCtx.projects.addProject(created)
+                            root.activeProjectForImport = created
+                            root.logInfo("Create project for import: " + created)
+                        } else {
+                            root.activeProjectForImport = projectCombo.currentText
+                            root.logInfo("Use existing project for import: " + root.activeProjectForImport)
+                        }
+                        root.logInfo("Open file picker for BOM import")
+                        fileDialog.open()
+                        newProjectField.clear()
+                        projectForImportDialog.close()
+                    }
+                }
             }
-            root.logInfo("Open file picker for BOM import")
-            fileDialog.open()
-            newProjectField.clear()
         }
     }
 
@@ -370,67 +443,135 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
-        id: inputDialog
-        modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        property string mode: ""
-
-        ColumnLayout {
-            anchors.fill: parent
-            TextField { id: dialogInput; Layout.fillWidth: true; placeholderText: root.tx("dialog.inputName") }
-        }
-
+    FileDialog {
+        id: exportFileDialog
+        title: root.tx("dialog.selectExportCsvFile")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "csv"
+        nameFilters: ["CSV Files (*.csv)", "All Files (*.*)"]
         onAccepted: {
-            const value = dialogInput.text.trim()
-            if (mode === "newProject") {
-                root.logInfo("New project: " + value)
-                root.appCtx.projects.addProject(value)
-            }
-            if (mode === "renameProject") {
-                root.logInfo("Rename project index " + root.renameProjectIndex + " -> " + value)
-                root.appCtx.projects.renameProject(root.renameProjectIndex, value)
-            }
-            if (mode === "newCategory") {
-                root.logInfo("New category: " + value)
-                root.appCtx.categories.addCategory(value)
-            }
-            if (mode === "renameCategory") {
-                root.logInfo("Rename category index " + root.renameCategoryIndex + " -> " + value)
-                root.appCtx.categories.renameCategory(root.renameCategoryIndex, value)
-            }
-            dialogInput.clear()
+            root.logInfo("Export file selected: " + selectedFile.toString())
+            root.appCtx.exportCsv(selectedFile)
         }
     }
 
-    Dialog {
-        id: settingsDialog
-        title: root.tx("settings.title")
+    Popup {
+        id: inputDialog
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        width: 340
+        focus: true
+        property string mode: ""
+        property string titleText: ""
+        width: 420
+        implicitHeight: inputDialogContent.implicitHeight + 20
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
         parent: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape
-        padding: 14
-
-        property string pendingLanguage: root.uiLanguage
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 10
 
         background: Rectangle {
-            radius: 14
-            color: root.cardColor
+            radius: 12
+            color: root.subtleColor
             border.color: root.borderColor
         }
 
         ColumnLayout {
+            id: inputDialogContent
+            anchors.fill: parent
+            spacing: 10
+            Label {
+                text: inputDialog.titleText
+                color: root.textColor
+                font.bold: true
+            }
+            TextField {
+                id: dialogInput
+                Layout.fillWidth: true
+                placeholderText: root.tx("dialog.inputName")
+                implicitHeight: 36
+                color: root.textColor
+                placeholderTextColor: root.mutedTextColor
+                selectionColor: root.primaryColor
+                selectedTextColor: "#FFFFFF"
+                background: Rectangle {
+                    radius: 10
+                    color: root.cardColor
+                    border.color: root.borderColor
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.cancel")
+                    onClicked: inputDialog.close()
+                }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.ok")
+                    accent: true
+                    onClicked: {
+                        const value = dialogInput.text.trim()
+                        if (mode === "newProject") {
+                            root.logInfo("New project: " + value)
+                            root.appCtx.projects.addProject(value)
+                        }
+                        if (mode === "renameProject") {
+                            root.logInfo("Rename project index " + root.renameProjectIndex + " -> " + value)
+                            root.appCtx.projects.renameProject(root.renameProjectIndex, value)
+                        }
+                        if (mode === "newCategory") {
+                            root.logInfo("New category: " + value)
+                            root.appCtx.categories.addCategory(value)
+                        }
+                        if (mode === "renameCategory") {
+                            root.logInfo("Rename category index " + root.renameCategoryIndex + " -> " + value)
+                            root.appCtx.categories.renameCategory(root.renameCategoryIndex, value)
+                        }
+                        dialogInput.clear()
+                        inputDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    Popup {
+        id: settingsDialog
+        modal: true
+        focus: true
+        width: 340
+        implicitHeight: settingsContent.implicitHeight + 20
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+        parent: Overlay.overlay
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 10
+
+        property string pendingLanguage: root.uiLanguage
+
+        background: Rectangle {
+            radius: 12
+            color: root.subtleColor
+            border.color: root.borderColor
+        }
+
+        ColumnLayout {
+            id: settingsContent
             anchors.fill: parent
             spacing: 10
 
             Label {
-                text: root.tx("settings.language")
+                text: root.tx("settings.title")
                 color: root.textColor
                 font.bold: true
+            }
+
+            Label {
+                text: root.tx("settings.language")
+                color: root.textColor
             }
 
             ComboBox {
@@ -438,22 +579,53 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 textRole: "label"
                 valueRole: "value"
+                implicitHeight: 36
+                font.pixelSize: 13
                 model: [
                     { "label": root.tx("settings.lang.zh"), "value": "zh-CN" },
                     { "label": root.tx("settings.lang.en"), "value": "en-US" }
                 ]
                 Component.onCompleted: currentIndex = root.uiLanguage === "en-US" ? 1 : 0
                 onActivated: settingsDialog.pendingLanguage = currentValue
+                contentItem: Text {
+                    leftPadding: 10
+                    rightPadding: 24
+                    text: languageCombo.displayText
+                    color: root.textColor
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                background: Rectangle {
+                    radius: 10
+                    color: root.cardColor
+                    border.color: root.borderColor
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.cancel")
+                    onClicked: settingsDialog.close()
+                }
+                AppButton {
+                    themeColors: root.themeColorsObj()
+                    text: root.tx("common.ok")
+                    accent: true
+                    onClicked: {
+                        root.uiLanguage = pendingLanguage
+                        root.logInfo("UI language changed: " + root.uiLanguage)
+                        settingsDialog.close()
+                    }
+                }
             }
         }
 
         onOpened: {
             languageCombo.currentIndex = root.uiLanguage === "en-US" ? 1 : 0
             pendingLanguage = root.uiLanguage
-        }
-        onAccepted: {
-            root.uiLanguage = pendingLanguage
-            root.logInfo("UI language changed: " + root.uiLanguage)
         }
     }
 
@@ -617,9 +789,13 @@ ApplicationWindow {
                 root.logInfo("Request import dialog")
                 projectForImportDialog.open()
             }
+            onRequestExport: {
+                root.logInfo("Request CSV export dialog")
+                exportFileDialog.open()
+            }
             onRequestNewProject: {
                 root.logInfo("Request new project dialog")
-                inputDialog.title = root.tx("dialog.newProject")
+                inputDialog.titleText = root.tx("dialog.newProject")
                 inputDialog.mode = "newProject"
                 inputDialog.open()
             }
@@ -631,7 +807,7 @@ ApplicationWindow {
                 }
                 root.logInfo("Request rename project dialog: index " + index + ", name " + currentName)
                 root.renameProjectIndex = index
-                inputDialog.title = root.tx("dialog.renameProject")
+                inputDialog.titleText = root.tx("dialog.renameProject")
                 inputDialog.mode = "renameProject"
                 dialogInput.text = currentName
                 inputDialog.open()
@@ -649,7 +825,7 @@ ApplicationWindow {
             }
             onRequestNewCategory: {
                 root.logInfo("Request new category dialog")
-                inputDialog.title = root.tx("dialog.newCategory")
+                inputDialog.titleText = root.tx("dialog.newCategory")
                 inputDialog.mode = "newCategory"
                 inputDialog.open()
             }
@@ -661,7 +837,7 @@ ApplicationWindow {
                 }
                 root.logInfo("Request rename category dialog: index " + index + ", name " + currentName)
                 root.renameCategoryIndex = index
-                inputDialog.title = root.tx("dialog.renameCategory")
+                inputDialog.titleText = root.tx("dialog.renameCategory")
                 inputDialog.mode = "renameCategory"
                 dialogInput.text = currentName
                 inputDialog.open()
@@ -894,10 +1070,9 @@ ApplicationWindow {
 
                                     Repeater {
                                         model: [
-                                            { "label": root.tx("diff.group.part"), "value": "part" },
-                                            { "label": root.tx("diff.group.name"), "value": "name" },
+                                            { "label": root.tx("diff.group.project"), "value": "project" },
                                             { "label": root.tx("diff.group.package"), "value": "package" },
-                                            { "label": root.tx("diff.group.project"), "value": "project" }
+                                            { "label": root.tx("diff.group.brand"), "value": "brand" }
                                         ]
 
                                         delegate: AppButton {
@@ -919,6 +1094,25 @@ ApplicationWindow {
 
                                 Item { Layout.fillWidth: true }
 
+                                RowLayout {
+                                    spacing: 6
+                                    Repeater {
+                                        model: [
+                                            { "label": root.tx("diff.view.list"), "value": "list" },
+                                            { "label": root.tx("diff.view.bar"), "value": "bar" }
+                                        ]
+                                        delegate: AppButton {
+                                            required property var modelData
+                                            themeColors: root.themeColorsObj()
+                                            text: modelData.label
+                                            accent: root.diffViewMode === modelData.value
+                                            implicitHeight: 30
+                                            cornerRadius: 8
+                                            onClicked: root.diffViewMode = modelData.value
+                                        }
+                                    }
+                                }
+
                                 Label {
                                     text: root.tx("diff.result.count") + ": " + root.diffItems.length
                                     color: root.textColor
@@ -927,114 +1121,207 @@ ApplicationWindow {
                             }
                         }
 
-                        ListView {
+                        StackLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            clip: true
-                            spacing: 8
-                            model: root.diffItems
+                            currentIndex: root.diffViewMode === "bar" ? 1 : 0
 
-                            delegate: Rectangle {
-                                required property var modelData
-                                width: ListView.view.width
-                                radius: 12
-                                color: root.cardColor
-                                border.color: Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.45)
-                                implicitHeight: itemColumn.implicitHeight + 16
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
 
                                 ColumnLayout {
-                                    id: itemColumn
                                     anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 6
+                                    spacing: 8
 
-                                    RowLayout {
+                                    ListView {
                                         Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        clip: true
                                         spacing: 8
+                                        model: root.diffItems
 
-                                        Label {
-                                            Layout.fillWidth: true
-                                            text: modelData.key
-                                            color: root.textColor
-                                            elide: Text.ElideRight
-                                            font.bold: true
-                                        }
-
-                                        Rectangle {
-                                            radius: 8
-                                            color: Qt.rgba(239/255, 68/255, 68/255, 0.15)
-                                            border.color: "#EF4444"
-                                            implicitHeight: 24
-                                            implicitWidth: diffBadge.implicitWidth + 14
-
-                                            Label {
-                                                id: diffBadge
-                                                anchors.centerIn: parent
-                                                text: root.tx("diff.changed.fields") + ": " + modelData.changedFieldCount
-                                                color: "#EF4444"
-                                                font.pixelSize: 12
-                                                font.bold: true
-                                            }
-                                        }
-                                    }
-
-                                    Repeater {
-                                        model: modelData.fieldDetails
-
-                                        delegate: RowLayout {
+                                        delegate: Rectangle {
                                             required property var modelData
-                                            Layout.fillWidth: true
-                                            spacing: 8
+                                            width: ListView.view.width
+                                            radius: 12
+                                            color: root.cardColor
+                                            border.color: Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.45)
+                                            implicitHeight: itemColumn.implicitHeight + 16
 
-                                            Label {
-                                                Layout.preferredWidth: 140
-                                                Layout.maximumWidth: 180
-                                                text: modelData.field
-                                                color: root.primaryColor
-                                                font.bold: true
-                                                elide: Text.ElideRight
-                                            }
-
-                                            Flow {
-                                                Layout.fillWidth: true
+                                            ColumnLayout {
+                                                id: itemColumn
+                                                anchors.fill: parent
+                                                anchors.margins: 8
                                                 spacing: 6
 
-                                                Repeater {
-                                                    model: modelData.values
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
 
-                                                    delegate: Rectangle {
-                                                        required property string modelData
-                                                        radius: 7
-                                                        color: root.subtleColor
-                                                        border.color: root.borderColor
-                                                        implicitHeight: 22
-                                                        implicitWidth: tokenText.implicitWidth + 12
+                                                    Label {
+                                                        Layout.fillWidth: true
+                                                        text: modelData.key
+                                                        color: root.textColor
+                                                        elide: Text.ElideRight
+                                                        font.bold: true
+                                                    }
+
+                                                    Rectangle {
+                                                        radius: 8
+                                                        color: Qt.rgba(239/255, 68/255, 68/255, 0.15)
+                                                        border.color: "#EF4444"
+                                                        implicitHeight: 24
+                                                        implicitWidth: diffBadge.implicitWidth + 14
 
                                                         Label {
-                                                            id: tokenText
+                                                            id: diffBadge
                                                             anchors.centerIn: parent
-                                                            text: modelData
-                                                            color: root.textColor
+                                                            text: root.tx("diff.changed.fields") + ": " + modelData.changedFieldCount
+                                                            color: "#EF4444"
                                                             font.pixelSize: 12
+                                                            font.bold: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Repeater {
+                                                    model: modelData.fieldDetails
+
+                                                    delegate: RowLayout {
+                                                        required property var modelData
+                                                        Layout.fillWidth: true
+                                                        Layout.topMargin: 1
+                                                        Layout.bottomMargin: 1
+                                                        spacing: 8
+
+                                                        Label {
+                                                            Layout.preferredWidth: 160
+                                                            Layout.maximumWidth: 160
+                                                            text: modelData.field
+                                                            color: root.primaryColor
+                                                            font.bold: true
+                                                            elide: Text.ElideRight
+                                                        }
+
+                                                        Item {
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: valueFlow.implicitHeight
+                                                            Layout.preferredHeight: implicitHeight
+
+                                                            Flow {
+                                                                id: valueFlow
+                                                                width: parent.width
+                                                                spacing: 6
+
+                                                                Repeater {
+                                                                    model: modelData.values
+                                                                    delegate: Rectangle {
+                                                                        required property string modelData
+                                                                        radius: 6
+                                                                        color: root.subtleColor
+                                                                        border.color: root.borderColor
+                                                                        implicitHeight: 22
+                                                                        implicitWidth: valueText.implicitWidth + 12
+
+                                                                        Label {
+                                                                            id: valueText
+                                                                            anchors.centerIn: parent
+                                                                            text: modelData
+                                                                            color: root.textColor
+                                                                            font.pixelSize: 12
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
+
+                                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                                    }
+
+                                    Label {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        visible: root.diffItems.length === 0
+                                        text: root.tx("diff.noresult")
+                                        color: root.mutedTextColor
                                     }
                                 }
                             }
 
-                            ScrollBar.vertical: ScrollBar {
-                                policy: ScrollBar.AsNeeded
-                            }
-                        }
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
 
-                        Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            visible: root.diffItems.length === 0
-                            text: root.tx("diff.noresult")
-                            color: root.mutedTextColor
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    spacing: 8
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        radius: 12
+                                        color: root.cardColor
+                                        border.color: root.borderColor
+
+                                        Canvas {
+                                            id: barCanvas
+                                            anchors.fill: parent
+                                            anchors.margins: 12
+                                            onPaint: {
+                                                const ctx = getContext("2d")
+                                                ctx.reset()
+                                                const items = (root.diffStats && root.diffStats.groupItems) ? root.diffStats.groupItems : []
+                                                if (!items.length) {
+                                                    return
+                                                }
+                                                const maxVal = Math.max(1, ...items.map(function(it) { return it.count }))
+                                                const barGap = 10
+                                                const barHeight = Math.max(18, Math.floor((height - (items.length + 1) * barGap) / items.length))
+                                                for (let i = 0; i < items.length; ++i) {
+                                                    const y = barGap + i * (barHeight + barGap)
+                                                    const name = String(items[i].name)
+                                                    const count = Number(items[i].count)
+                                                    const barW = Math.max(2, Math.floor((width - 220) * count / maxVal))
+                                                    ctx.fillStyle = "rgba(201,119,143,0.85)"
+                                                    ctx.fillRect(180, y, barW, barHeight)
+                                                    ctx.fillStyle = root.darkTheme ? "#E6E1E8" : "#0F172A"
+                                                    ctx.font = "12px sans-serif"
+                                                    ctx.fillText(name, 6, y + barHeight - 4)
+                                                    ctx.fillText(String(count), 188 + barW, y + barHeight - 4)
+                                                }
+                                            }
+                                            Connections {
+                                                target: root
+                                                function onDiffStatsChanged() { barCanvas.requestPaint() }
+                                            }
+                                            onWidthChanged: requestPaint()
+                                            onHeightChanged: requestPaint()
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 122
+                                        radius: 12
+                                        color: root.cardColor
+                                        border.color: root.borderColor
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 4
+                                            Label { text: root.tx("diff.health.score") + ": " + (root.diffStats && root.diffStats.healthScore !== undefined ? root.diffStats.healthScore : 0); color: root.textColor; font.bold: true }
+                                            Label { text: root.tx("diff.health.total") + ": " + (root.diffStats && root.diffStats.totalRows !== undefined ? root.diffStats.totalRows : 0) + "   " + root.tx("diff.health.unique") + ": " + (root.diffStats && root.diffStats.uniquePartCount !== undefined ? root.diffStats.uniquePartCount : 0); color: root.textColor }
+                                            Label { text: root.tx("diff.health.lowqty") + ": " + (root.diffStats && root.diffStats.lowQtyCount !== undefined ? root.diffStats.lowQtyCount : 0) + "   " + root.tx("diff.health.missing") + ": " + (root.diffStats && root.diffStats.missingPartCount !== undefined ? root.diffStats.missingPartCount : 0); color: root.textColor }
+                                            Label { text: root.tx("diff.health.duplicate") + ": " + (root.diffStats && root.diffStats.duplicatePartCount !== undefined ? root.diffStats.duplicatePartCount : 0); color: root.textColor }
+                                        }
+                                    }
+                                }
+                            }
+
                         }
                     }
                 }

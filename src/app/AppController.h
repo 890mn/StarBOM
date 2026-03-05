@@ -39,6 +39,7 @@ public:
     Q_INVOKABLE void logInfo(const QString &message);
     Q_INVOKABLE void logWarning(const QString &message);
     Q_INVOKABLE void logError(const QString &message);
+    Q_INVOKABLE bool exportCsv(const QUrl &fileUrl);
     Q_INVOKABLE QVariantList loadBomWidthRatios(const QString &layoutHash) const;
     Q_INVOKABLE void saveBomWidthRatios(const QString &layoutHash, const QVariantList &ratios);
 
