@@ -54,8 +54,10 @@ set(APP_QRC_FILES
 
 set(APP_QML_FILES
     src/qml/Main.qml
+    src/qml/I18n.js
     src/qml/components/AppButton.qml
     src/qml/components/AppToolButton.qml
+    src/qml/components/DebugConsole.qml
     src/qml/components/DialogHost.qml
     src/qml/components/DiffPane.qml
     src/qml/components/SidebarPane.qml
