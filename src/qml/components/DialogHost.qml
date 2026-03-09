@@ -144,7 +144,7 @@ Item {
         id: fileDialog
         title: root.txSafe("dialog.selectLichuangFile", "Select LCSC export file")
         nameFilters: ["Spreadsheet Files (*.xlsx *.xls *.csv)", "All Files (*.*)"]
-        onAccepted: root.app.importLichuang(selectedFile, root.activeProjectForImport)
+        onAccepted: root.app.io.importLichuang(selectedFile, root.activeProjectForImport)
     }
 
     FileDialog {
@@ -153,7 +153,7 @@ Item {
         fileMode: FileDialog.SaveFile
         defaultSuffix: "csv"
         nameFilters: ["CSV Files (*.csv)", "All Files (*.*)"]
-        onAccepted: root.app.exportCsv(selectedFile)
+        onAccepted: root.app.io.exportCsv(selectedFile)
     }
 
     function openExportDialog() {

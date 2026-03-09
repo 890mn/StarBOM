@@ -27,6 +27,7 @@ set(APP_CPP_SOURCES
     src/main.cpp
     src/app/AppLogger.cpp
     src/app/AppController.cpp
+    src/app/DataIoController.cpp
     src/app/ThemeController.cpp
     src/app/ProjectController.cpp
     src/app/CategoryController.cpp
@@ -37,6 +38,7 @@ set(APP_CPP_SOURCES
 set(APP_HEADERS
     src/app/AppLogger.h
     src/app/AppController.h
+    src/app/DataIoController.h
     src/app/ThemeController.h
     src/app/ProjectController.h
     src/app/CategoryController.h
