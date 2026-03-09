@@ -2,7 +2,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import QtCore
 import "components"
 
@@ -16,7 +15,6 @@ ApplicationWindow {
     minimumHeight: 700
 
     required property var appCtx
-    property string activeProjectForImport: ""
     property int renameProjectIndex: -1
     property int renameCategoryIndex: -1
     property bool pinnedTopMost: false
@@ -28,6 +26,8 @@ ApplicationWindow {
     property bool showWarningLogs: true
     property bool showErrorLogs: true
     property string uiLanguage: uiSettings.language
+    property var textMap: uiLanguage === "en-US" ? textEn : textZh
+    property int activeTabIndex: 0
     property string bomSearchText: ""
     property string diffSearchText: ""
     property string diffGroupMode: "project"
@@ -338,294 +338,40 @@ ApplicationWindow {
     palette.placeholderText: mutedTextColor
     palette.mid: borderColor
 
-    Popup {
-        id: projectForImportDialog
-        modal: true
-        focus: true
-        width: 420
-        implicitHeight: importDialogContent.implicitHeight + 20
-        x: Math.round((root.width - width) / 2)
-        y: Math.round((root.height - height) / 2)
-        parent: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        padding: 10
-
-        background: Rectangle {
-            radius: 12
-            color: root.subtleColor
-            border.color: root.borderColor
+    DialogHost {
+        id: dialogHost
+        anchors.fill: parent
+        app: root.appCtx
+        themeColors: root.themeColorsObj()
+        textColor: root.textColor
+        mutedTextColor: root.mutedTextColor
+        primaryColor: root.primaryColor
+        subtleColor: root.subtleColor
+        cardColor: root.cardColor
+        borderColor: root.borderColor
+        uiLanguage: root.uiLanguage
+        textMap: root.textMap
+        onLanguageApplied: function(language) {
+            root.uiLanguage = language
+            root.logInfo("UI language changed: " + root.uiLanguage)
         }
-
-        ColumnLayout {
-            id: importDialogContent
-            anchors.fill: parent
-            spacing: 10
-            Label {
-                text: root.tx("dialog.selectImportProject")
-                color: root.textColor
-                font.bold: true
+        onInputAccepted: function(mode, value) {
+            if (mode === "newProject") {
+                root.logInfo("New project: " + value)
+                root.appCtx.projects.addProject(value)
             }
-            ComboBox {
-                id: projectCombo
-                Layout.fillWidth: true
-                model: root.appCtx.projects.projectNames(false)
-                implicitHeight: 36
-                font.pixelSize: 13
-                contentItem: Text {
-                    leftPadding: 10
-                    rightPadding: 24
-                    text: projectCombo.displayText
-                    color: root.textColor
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                }
-                background: Rectangle {
-                    radius: 10
-                    color: root.cardColor
-                    border.color: root.borderColor
-                }
+            if (mode === "renameProject") {
+                root.logInfo("Rename project index " + root.renameProjectIndex + " -> " + value)
+                root.appCtx.projects.renameProject(root.renameProjectIndex, value)
             }
-            TextField {
-                id: newProjectField
-                Layout.fillWidth: true
-                placeholderText: root.tx("dialog.newProjectOr")
-                implicitHeight: 36
-                color: root.textColor
-                placeholderTextColor: root.mutedTextColor
-                selectionColor: root.primaryColor
-                selectedTextColor: "#FFFFFF"
-                background: Rectangle {
-                    radius: 10
-                    color: root.cardColor
-                    border.color: root.borderColor
-                }
+            if (mode === "newCategory") {
+                root.logInfo("New category: " + value)
+                root.appCtx.categories.addCategory(value)
             }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.cancel")
-                    onClicked: projectForImportDialog.close()
-                }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.ok")
-                    accent: true
-                    onClicked: {
-                        const created = newProjectField.text.trim()
-                        if (created.length > 0) {
-                            root.appCtx.projects.addProject(created)
-                            root.activeProjectForImport = created
-                            root.logInfo("Create project for import: " + created)
-                        } else {
-                            root.activeProjectForImport = projectCombo.currentText
-                            root.logInfo("Use existing project for import: " + root.activeProjectForImport)
-                        }
-                        root.logInfo("Open file picker for BOM import")
-                        fileDialog.open()
-                        newProjectField.clear()
-                        projectForImportDialog.close()
-                    }
-                }
+            if (mode === "renameCategory") {
+                root.logInfo("Rename category index " + root.renameCategoryIndex + " -> " + value)
+                root.appCtx.categories.renameCategory(root.renameCategoryIndex, value)
             }
-        }
-    }
-
-    FileDialog {
-        id: fileDialog
-        title: root.tx("dialog.selectLichuangFile")
-        nameFilters: ["Spreadsheet Files (*.xlsx *.xls *.csv)", "All Files (*.*)"]
-        onAccepted: {
-            root.logInfo("Import file selected: " + selectedFile.toString())
-            root.appCtx.importLichuang(selectedFile, root.activeProjectForImport)
-        }
-    }
-
-    FileDialog {
-        id: exportFileDialog
-        title: root.tx("dialog.selectExportCsvFile")
-        fileMode: FileDialog.SaveFile
-        defaultSuffix: "csv"
-        nameFilters: ["CSV Files (*.csv)", "All Files (*.*)"]
-        onAccepted: {
-            root.logInfo("Export file selected: " + selectedFile.toString())
-            root.appCtx.exportCsv(selectedFile)
-        }
-    }
-
-    Popup {
-        id: inputDialog
-        modal: true
-        focus: true
-        property string mode: ""
-        property string titleText: ""
-        width: 420
-        implicitHeight: inputDialogContent.implicitHeight + 20
-        x: Math.round((root.width - width) / 2)
-        y: Math.round((root.height - height) / 2)
-        parent: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        padding: 10
-
-        background: Rectangle {
-            radius: 12
-            color: root.subtleColor
-            border.color: root.borderColor
-        }
-
-        ColumnLayout {
-            id: inputDialogContent
-            anchors.fill: parent
-            spacing: 10
-            Label {
-                text: inputDialog.titleText
-                color: root.textColor
-                font.bold: true
-            }
-            TextField {
-                id: dialogInput
-                Layout.fillWidth: true
-                placeholderText: root.tx("dialog.inputName")
-                implicitHeight: 36
-                color: root.textColor
-                placeholderTextColor: root.mutedTextColor
-                selectionColor: root.primaryColor
-                selectedTextColor: "#FFFFFF"
-                background: Rectangle {
-                    radius: 10
-                    color: root.cardColor
-                    border.color: root.borderColor
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.cancel")
-                    onClicked: inputDialog.close()
-                }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.ok")
-                    accent: true
-                    onClicked: {
-                        const value = dialogInput.text.trim()
-                        if (mode === "newProject") {
-                            root.logInfo("New project: " + value)
-                            root.appCtx.projects.addProject(value)
-                        }
-                        if (mode === "renameProject") {
-                            root.logInfo("Rename project index " + root.renameProjectIndex + " -> " + value)
-                            root.appCtx.projects.renameProject(root.renameProjectIndex, value)
-                        }
-                        if (mode === "newCategory") {
-                            root.logInfo("New category: " + value)
-                            root.appCtx.categories.addCategory(value)
-                        }
-                        if (mode === "renameCategory") {
-                            root.logInfo("Rename category index " + root.renameCategoryIndex + " -> " + value)
-                            root.appCtx.categories.renameCategory(root.renameCategoryIndex, value)
-                        }
-                        dialogInput.clear()
-                        inputDialog.close()
-                    }
-                }
-            }
-        }
-    }
-
-    Popup {
-        id: settingsDialog
-        modal: true
-        focus: true
-        width: 340
-        implicitHeight: settingsContent.implicitHeight + 20
-        x: Math.round((root.width - width) / 2)
-        y: Math.round((root.height - height) / 2)
-        parent: Overlay.overlay
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        padding: 10
-
-        property string pendingLanguage: root.uiLanguage
-
-        background: Rectangle {
-            radius: 12
-            color: root.subtleColor
-            border.color: root.borderColor
-        }
-
-        ColumnLayout {
-            id: settingsContent
-            anchors.fill: parent
-            spacing: 10
-
-            Label {
-                text: root.tx("settings.title")
-                color: root.textColor
-                font.bold: true
-            }
-
-            Label {
-                text: root.tx("settings.language")
-                color: root.textColor
-            }
-
-            ComboBox {
-                id: languageCombo
-                Layout.fillWidth: true
-                textRole: "label"
-                valueRole: "value"
-                implicitHeight: 36
-                font.pixelSize: 13
-                model: [
-                    { "label": root.tx("settings.lang.zh"), "value": "zh-CN" },
-                    { "label": root.tx("settings.lang.en"), "value": "en-US" }
-                ]
-                Component.onCompleted: currentIndex = root.uiLanguage === "en-US" ? 1 : 0
-                onActivated: settingsDialog.pendingLanguage = currentValue
-                contentItem: Text {
-                    leftPadding: 10
-                    rightPadding: 24
-                    text: languageCombo.displayText
-                    color: root.textColor
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                }
-                background: Rectangle {
-                    radius: 10
-                    color: root.cardColor
-                    border.color: root.borderColor
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.cancel")
-                    onClicked: settingsDialog.close()
-                }
-                AppButton {
-                    themeColors: root.themeColorsObj()
-                    text: root.tx("common.ok")
-                    accent: true
-                    onClicked: {
-                        root.uiLanguage = pendingLanguage
-                        root.logInfo("UI language changed: " + root.uiLanguage)
-                        settingsDialog.close()
-                    }
-                }
-            }
-        }
-
-        onOpened: {
-            languageCombo.currentIndex = root.uiLanguage === "en-US" ? 1 : 0
-            pendingLanguage = root.uiLanguage
         }
     }
 
@@ -750,12 +496,12 @@ ApplicationWindow {
     Connections {
         target: root.appCtx.bomModel
         function onModelReset() {
-            if (tabs.currentIndex === 1) {
+            if (root.activeTabIndex === 1) {
                 root.refreshDiffAnalysis()
             }
         }
         function onHeaderDataChanged() {
-            if (tabs.currentIndex === 1) {
+            if (root.activeTabIndex === 1) {
                 root.refreshDiffAnalysis()
             }
         }
@@ -774,30 +520,28 @@ ApplicationWindow {
             pinnedTopMost: root.pinnedTopMost
             themeColors: root.themeColorsObj()
             uiLanguage: root.uiLanguage
-            tx: root.tx
+            textMap: root.textMap
             onTogglePinned: {
                 root.pinnedTopMost = !root.pinnedTopMost
                 root.logInfo("Toggle pin top-most: " + root.pinnedTopMost)
             }
             onOpenSettings: {
-                settingsDialog.open()
+                dialogHost.openSettingsDialog()
             }
             onToggleDebugPanel: {
                 root.debugPanelVisible = !root.debugPanelVisible
             }
             onRequestImport: {
                 root.logInfo("Request import dialog")
-                projectForImportDialog.open()
+                dialogHost.openProjectImportDialog()
             }
             onRequestExport: {
                 root.logInfo("Request CSV export dialog")
-                exportFileDialog.open()
+                dialogHost.openExportDialog()
             }
             onRequestNewProject: {
                 root.logInfo("Request new project dialog")
-                inputDialog.titleText = root.tx("dialog.newProject")
-                inputDialog.mode = "newProject"
-                inputDialog.open()
+                dialogHost.openInputDialog("newProject", root.tx("dialog.newProject"), "")
             }
             onRequestRenameProject: function(index, currentName) {
                 if (index <= 0 || currentName === "All Projects") {
@@ -807,10 +551,7 @@ ApplicationWindow {
                 }
                 root.logInfo("Request rename project dialog: index " + index + ", name " + currentName)
                 root.renameProjectIndex = index
-                inputDialog.titleText = root.tx("dialog.renameProject")
-                inputDialog.mode = "renameProject"
-                dialogInput.text = currentName
-                inputDialog.open()
+                dialogHost.openInputDialog("renameProject", root.tx("dialog.renameProject"), currentName)
             }
             onRequestDeleteProject: function(index, currentName) {
                 if (index <= 0 || currentName === "All Projects") {
@@ -825,9 +566,7 @@ ApplicationWindow {
             }
             onRequestNewCategory: {
                 root.logInfo("Request new category dialog")
-                inputDialog.titleText = root.tx("dialog.newCategory")
-                inputDialog.mode = "newCategory"
-                inputDialog.open()
+                dialogHost.openInputDialog("newCategory", root.tx("dialog.newCategory"), "")
             }
             onRequestRenameCategory: function(index, currentName) {
                 if (index < 0) {
@@ -837,10 +576,7 @@ ApplicationWindow {
                 }
                 root.logInfo("Request rename category dialog: index " + index + ", name " + currentName)
                 root.renameCategoryIndex = index
-                inputDialog.titleText = root.tx("dialog.renameCategory")
-                inputDialog.mode = "renameCategory"
-                dialogInput.text = currentName
-                inputDialog.open()
+                dialogHost.openInputDialog("renameCategory", root.tx("dialog.renameCategory"), currentName)
             }
             onRequestDeleteCategory: function(index, currentName) {
                 if (index < 0) {
@@ -866,157 +602,49 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 50
 
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton
-                    gesturePolicy: TapHandler.WithinBounds
-                    onLongPressed: {
-                        root.debugPanelVisible = !root.debugPanelVisible
-                    }
-                }
-
-                RowLayout {
+                TopBar {
+                    id: topBar
                     anchors.fill: parent
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.preferredWidth: 290
-                        Layout.minimumWidth: 290
-                        Layout.maximumWidth: 290
-                        Layout.preferredHeight: 42
-                        radius: 12
-                        color: root.cardColor
-                        border.color: root.borderColor
-
-                        TabBar {
-                            id: tabs
-                            anchors.fill: parent
-                            anchors.margins: 0
-                            anchors.topMargin: 3
-                            anchors.bottomMargin: -1
-                            spacing: 6
-                            padding: 0
-                            background: Rectangle {
-                                radius: 10
-                                color: "transparent"
-                            }
-                            onCurrentIndexChanged: {
-                                root.logInfo("View switched: " + (currentIndex === 0 ? "BOM" : "Diff"))
-                                root.syncingTopSearch = true
-                                globalSearch.text = currentIndex === 0 ? root.bomSearchText : root.diffSearchText
-                                root.syncingTopSearch = false
-                                if (currentIndex === 1) {
-                                    root.refreshDiffAnalysis()
-                                }
-                            }
-
-                            TabButton {
-                                text: root.tx("tab.bomView")
-                                height: tabs.height
-                                implicitWidth: 136
-                                implicitHeight: 36
-                                topPadding: 0
-                                bottomPadding: 0
-                                leftPadding: 0
-                                rightPadding: 0
-                                background: Rectangle {
-                                    anchors.fill: parent
-                                    radius: 10
-                                    antialiasing: true
-                                    color: tabs.currentIndex === 0 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
-                                    border.color: tabs.currentIndex === 0 ? root.primaryColor : "transparent"
-                                    border.width: tabs.currentIndex === 0 ? 1 : 0
-                                }
-                                contentItem: Text {
-                                    text: root.tx("tab.bomView")
-                                    color: root.textColor
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                    font.pixelSize: 14
-                                    font.bold: tabs.currentIndex === 0
-                                }
-                            }
-
-                            TabButton {
-                                text: root.tx("tab.diff")
-                                height: tabs.height
-                                implicitWidth: 136
-                                implicitHeight: 36
-                                topPadding: 0
-                                bottomPadding: 0
-                                leftPadding: 0
-                                rightPadding: 0
-                                background: Rectangle {
-                                    anchors.fill: parent
-                                    radius: 10
-                                    antialiasing: true
-                                    color: tabs.currentIndex === 1 ? Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.18) : "transparent"
-                                    border.color: tabs.currentIndex === 1 ? root.primaryColor : "transparent"
-                                    border.width: tabs.currentIndex === 1 ? 1 : 0
-                                }
-                                contentItem: Text {
-                                    text: root.tx("tab.diff")
-                                    color: root.textColor
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                    font.pixelSize: 14
-                                    font.bold: tabs.currentIndex === 1
-                                }
-                            }
+                    themeColors: root.themeColorsObj()
+                    textColor: root.textColor
+                    mutedTextColor: root.mutedTextColor
+                    primaryColor: root.primaryColor
+                    textMap: root.textMap
+                    currentIndex: root.activeTabIndex
+                    searchText: root.activeTabIndex === 0 ? root.bomSearchText : root.diffSearchText
+                    onToggleDebugRequested: root.debugPanelVisible = !root.debugPanelVisible
+                    onTabChanged: function(index) {
+                        root.syncingTopSearch = true
+                        root.activeTabIndex = index
+                        root.syncingTopSearch = false
+                        root.logInfo("View switched: " + (index === 0 ? "BOM" : "Diff"))
+                        if (index === 1) {
+                            root.refreshDiffAnalysis()
                         }
                     }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 42
-                        radius: 12
-                        color: root.cardColor
-                        border.color: root.borderColor
-
-                        TextField {
-                            id: globalSearch
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            placeholderText: tabs.currentIndex === 0 ? root.tx("search.placeholder") : root.tx("diff.search.placeholder")
-                            color: root.textColor
-                            placeholderTextColor: root.mutedTextColor
-                            verticalAlignment: TextInput.AlignVCenter
-                            background: Item {}
-                            onTextChanged: {
-                                if (root.syncingTopSearch) {
-                                    return
-                                }
-                                if (tabs.currentIndex === 0) {
-                                    root.bomSearchText = text
-                                    root.appCtx.bomModel.setFilterKeyword(text)
-                                    root.logInfo("Global BOM search changed: \"" + text + "\"")
-                                } else {
-                                    root.diffSearchText = text
-                                    root.refreshDiffAnalysis()
-                                    root.logInfo("Diff search changed: \"" + text + "\"")
-                                }
-                            }
+                    onSearchEdited: function(text) {
+                        if (root.syncingTopSearch) {
+                            return
+                        }
+                        if (root.activeTabIndex === 0) {
+                            root.bomSearchText = text
+                            root.appCtx.bomModel.setFilterKeyword(text)
+                            root.logInfo("Global BOM search changed: \"" + text + "\"")
+                        } else {
+                            root.diffSearchText = text
+                            root.refreshDiffAnalysis()
+                            root.logInfo("Diff search changed: \"" + text + "\"")
                         }
                     }
-
-                    AppButton {
-                        themeColors: root.themeColorsObj()
-                        text: root.tx("common.clear")
-                        font.pixelSize: 14
-                        cornerRadius: 10
-                        implicitHeight: 42
-                        implicitWidth: 78
-                        onClicked: {
-                            globalSearch.clear()
-                            if (tabs.currentIndex === 0) {
-                                root.bomSearchText = ""
-                                root.appCtx.bomModel.setFilterKeyword("")
-                                root.logInfo("Global BOM search cleared")
-                            } else {
-                                root.diffSearchText = ""
-                                root.refreshDiffAnalysis()
-                                root.logInfo("Diff search cleared")
-                            }
+                    onClearRequested: {
+                        if (root.activeTabIndex === 0) {
+                            root.bomSearchText = ""
+                            root.appCtx.bomModel.setFilterKeyword("")
+                            root.logInfo("Global BOM search cleared")
+                        } else {
+                            root.diffSearchText = ""
+                            root.refreshDiffAnalysis()
+                            root.logInfo("Diff search cleared")
                         }
                     }
                 }
@@ -1025,7 +653,7 @@ ApplicationWindow {
             StackLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: tabs.currentIndex
+                currentIndex: root.activeTabIndex
 
                 BomPane {
                     Layout.fillWidth: true
@@ -1033,296 +661,32 @@ ApplicationWindow {
                     app: root.appCtx
                     themeColors: root.themeColorsObj()
                     uiLanguage: root.uiLanguage
-                    tx: root.tx
+                    textMap: root.textMap
                     onDebugLog: function(level, message) {
                         root.appendDebugLog(level, "BOM: " + message)
                     }
                 }
 
-                Item {
+                DiffPane {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 8
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 50
-                            radius: 12
-                            color: root.cardColor
-                            border.color: root.borderColor
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                spacing: 10
-
-                                Label {
-                                    text: root.tx("diff.group.by")
-                                    color: root.mutedTextColor
-                                }
-
-                                RowLayout {
-                                    spacing: 6
-
-                                    Repeater {
-                                        model: [
-                                            { "label": root.tx("diff.group.project"), "value": "project" },
-                                            { "label": root.tx("diff.group.package"), "value": "package" },
-                                            { "label": root.tx("diff.group.brand"), "value": "brand" }
-                                        ]
-
-                                        delegate: AppButton {
-                                            required property var modelData
-                                            themeColors: root.themeColorsObj()
-                                            text: modelData.label
-                                            accent: root.diffGroupMode === modelData.value
-                                            implicitHeight: 30
-                                            cornerRadius: 8
-                                            onClicked: {
-                                                if (root.diffGroupMode !== modelData.value) {
-                                                    root.diffGroupMode = modelData.value
-                                                    root.refreshDiffAnalysis()
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                RowLayout {
-                                    spacing: 6
-                                    Repeater {
-                                        model: [
-                                            { "label": root.tx("diff.view.list"), "value": "list" },
-                                            { "label": root.tx("diff.view.bar"), "value": "bar" }
-                                        ]
-                                        delegate: AppButton {
-                                            required property var modelData
-                                            themeColors: root.themeColorsObj()
-                                            text: modelData.label
-                                            accent: root.diffViewMode === modelData.value
-                                            implicitHeight: 30
-                                            cornerRadius: 8
-                                            onClicked: root.diffViewMode = modelData.value
-                                        }
-                                    }
-                                }
-
-                                Label {
-                                    text: root.tx("diff.result.count") + ": " + root.diffItems.length
-                                    color: root.textColor
-                                    font.bold: true
-                                }
-                            }
-                        }
-
-                        StackLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            currentIndex: root.diffViewMode === "bar" ? 1 : 0
-
-                            Item {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    spacing: 8
-
-                                    ListView {
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        clip: true
-                                        spacing: 8
-                                        model: root.diffItems
-
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            width: ListView.view.width
-                                            radius: 12
-                                            color: root.cardColor
-                                            border.color: Qt.rgba(root.primaryColor.r, root.primaryColor.g, root.primaryColor.b, 0.45)
-                                            implicitHeight: itemColumn.implicitHeight + 16
-
-                                            ColumnLayout {
-                                                id: itemColumn
-                                                anchors.fill: parent
-                                                anchors.margins: 8
-                                                spacing: 6
-
-                                                RowLayout {
-                                                    Layout.fillWidth: true
-                                                    spacing: 8
-
-                                                    Label {
-                                                        Layout.fillWidth: true
-                                                        text: modelData.key
-                                                        color: root.textColor
-                                                        elide: Text.ElideRight
-                                                        font.bold: true
-                                                    }
-
-                                                    Rectangle {
-                                                        radius: 8
-                                                        color: Qt.rgba(239/255, 68/255, 68/255, 0.15)
-                                                        border.color: "#EF4444"
-                                                        implicitHeight: 24
-                                                        implicitWidth: diffBadge.implicitWidth + 14
-
-                                                        Label {
-                                                            id: diffBadge
-                                                            anchors.centerIn: parent
-                                                            text: root.tx("diff.changed.fields") + ": " + modelData.changedFieldCount
-                                                            color: "#EF4444"
-                                                            font.pixelSize: 12
-                                                            font.bold: true
-                                                        }
-                                                    }
-                                                }
-
-                                                Repeater {
-                                                    model: modelData.fieldDetails
-
-                                                    delegate: RowLayout {
-                                                        required property var modelData
-                                                        Layout.fillWidth: true
-                                                        Layout.topMargin: 1
-                                                        Layout.bottomMargin: 1
-                                                        spacing: 8
-
-                                                        Label {
-                                                            Layout.preferredWidth: 160
-                                                            Layout.maximumWidth: 160
-                                                            text: modelData.field
-                                                            color: root.primaryColor
-                                                            font.bold: true
-                                                            elide: Text.ElideRight
-                                                        }
-
-                                                        Item {
-                                                            Layout.fillWidth: true
-                                                            implicitHeight: valueFlow.implicitHeight
-                                                            Layout.preferredHeight: implicitHeight
-
-                                                            Flow {
-                                                                id: valueFlow
-                                                                width: parent.width
-                                                                spacing: 6
-
-                                                                Repeater {
-                                                                    model: modelData.values
-                                                                    delegate: Rectangle {
-                                                                        required property string modelData
-                                                                        radius: 6
-                                                                        color: root.subtleColor
-                                                                        border.color: root.borderColor
-                                                                        implicitHeight: 22
-                                                                        implicitWidth: valueText.implicitWidth + 12
-
-                                                                        Label {
-                                                                            id: valueText
-                                                                            anchors.centerIn: parent
-                                                                            text: modelData
-                                                                            color: root.textColor
-                                                                            font.pixelSize: 12
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                                    }
-
-                                    Label {
-                                        Layout.alignment: Qt.AlignHCenter
-                                        visible: root.diffItems.length === 0
-                                        text: root.tx("diff.noresult")
-                                        color: root.mutedTextColor
-                                    }
-                                }
-                            }
-
-                            Item {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    spacing: 8
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        radius: 12
-                                        color: root.cardColor
-                                        border.color: root.borderColor
-
-                                        Canvas {
-                                            id: barCanvas
-                                            anchors.fill: parent
-                                            anchors.margins: 12
-                                            onPaint: {
-                                                const ctx = getContext("2d")
-                                                ctx.reset()
-                                                const items = (root.diffStats && root.diffStats.groupItems) ? root.diffStats.groupItems : []
-                                                if (!items.length) {
-                                                    return
-                                                }
-                                                const maxVal = Math.max(1, ...items.map(function(it) { return it.count }))
-                                                const barGap = 10
-                                                const barHeight = Math.max(18, Math.floor((height - (items.length + 1) * barGap) / items.length))
-                                                for (let i = 0; i < items.length; ++i) {
-                                                    const y = barGap + i * (barHeight + barGap)
-                                                    const name = String(items[i].name)
-                                                    const count = Number(items[i].count)
-                                                    const barW = Math.max(2, Math.floor((width - 220) * count / maxVal))
-                                                    ctx.fillStyle = "rgba(201,119,143,0.85)"
-                                                    ctx.fillRect(180, y, barW, barHeight)
-                                                    ctx.fillStyle = root.darkTheme ? "#E6E1E8" : "#0F172A"
-                                                    ctx.font = "12px sans-serif"
-                                                    ctx.fillText(name, 6, y + barHeight - 4)
-                                                    ctx.fillText(String(count), 188 + barW, y + barHeight - 4)
-                                                }
-                                            }
-                                            Connections {
-                                                target: root
-                                                function onDiffStatsChanged() { barCanvas.requestPaint() }
-                                            }
-                                            onWidthChanged: requestPaint()
-                                            onHeightChanged: requestPaint()
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        implicitHeight: 122
-                                        radius: 12
-                                        color: root.cardColor
-                                        border.color: root.borderColor
-                                        ColumnLayout {
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 4
-                                            Label { text: root.tx("diff.health.score") + ": " + (root.diffStats && root.diffStats.healthScore !== undefined ? root.diffStats.healthScore : 0); color: root.textColor; font.bold: true }
-                                            Label { text: root.tx("diff.health.total") + ": " + (root.diffStats && root.diffStats.totalRows !== undefined ? root.diffStats.totalRows : 0) + "   " + root.tx("diff.health.unique") + ": " + (root.diffStats && root.diffStats.uniquePartCount !== undefined ? root.diffStats.uniquePartCount : 0); color: root.textColor }
-                                            Label { text: root.tx("diff.health.lowqty") + ": " + (root.diffStats && root.diffStats.lowQtyCount !== undefined ? root.diffStats.lowQtyCount : 0) + "   " + root.tx("diff.health.missing") + ": " + (root.diffStats && root.diffStats.missingPartCount !== undefined ? root.diffStats.missingPartCount : 0); color: root.textColor }
-                                            Label { text: root.tx("diff.health.duplicate") + ": " + (root.diffStats && root.diffStats.duplicatePartCount !== undefined ? root.diffStats.duplicatePartCount : 0); color: root.textColor }
-                                        }
-                                    }
-                                }
-                            }
-
-                        }
+                    themeColors: root.themeColorsObj()
+                    textColor: root.textColor
+                    mutedTextColor: root.mutedTextColor
+                    primaryColor: root.primaryColor
+                    subtleColor: root.subtleColor
+                    darkTheme: root.darkTheme
+                    textMap: root.textMap
+                    groupMode: root.diffGroupMode
+                    viewMode: root.diffViewMode
+                    diffItems: root.diffItems
+                    diffStats: root.diffStats
+                    onGroupModeSelected: function(value) {
+                        root.diffGroupMode = value
+                        root.refreshDiffAnalysis()
+                    }
+                    onViewModeSelected: function(value) {
+                        root.diffViewMode = value
                     }
                 }
             }

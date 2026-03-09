@@ -8,7 +8,7 @@ Item {
     required property var app
     required property var themeColors
     required property string uiLanguage
-    required property var tx
+    required property var textMap
     signal debugLog(string level, string message)
 
     property var slotAscending: []
@@ -19,9 +19,9 @@ Item {
     property real popupMaxHeight: Math.max(260, root.height - 24)
 
     function txSafe(key, fallback) {
-        if (root.tx) {
-            const value = root.tx(key)
-            if (value !== key) {
+        if (root.textMap && root.textMap[key] !== undefined) {
+            const value = root.textMap[key]
+            if (value !== undefined && value !== key) {
                 return value
             }
         }

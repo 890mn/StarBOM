@@ -56,8 +56,11 @@ set(APP_QML_FILES
     src/qml/Main.qml
     src/qml/components/AppButton.qml
     src/qml/components/AppToolButton.qml
+    src/qml/components/DialogHost.qml
+    src/qml/components/DiffPane.qml
     src/qml/components/SidebarPane.qml
     src/qml/components/SidebarModuleCard.qml
+    src/qml/components/TopBar.qml
     src/qml/components/BomPane.qml
 )
 
@@ -80,7 +83,7 @@ qt_add_qml_module(${APP_NAME}
     RESOURCES src/qml/components/qmldir
 )
 
-target_link_libraries(${APP_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2 spdlog::spdlog_header_only)
+target_link_libraries(${APP_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2 spdlog::spdlog)
 
 if (WIN32)
     target_link_libraries(${APP_NAME} PRIVATE dwmapi)
