@@ -1,5 +1,8 @@
 ﻿AppButton 1.0 AppButton.qml
 AppToolButton 1.0 AppToolButton.qml
 BomPane 1.0 BomPane.qml
+SidebarCategoryActions 1.0 SidebarCategoryActions.qml
+SidebarFilterTree 1.0 SidebarFilterTree.qml
 SidebarModuleCard 1.0 SidebarModuleCard.qml
 SidebarPane 1.0 SidebarPane.qml
+SidebarProjectActions 1.0 SidebarProjectActions.qml

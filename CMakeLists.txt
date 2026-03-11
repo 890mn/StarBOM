@@ -18,8 +18,11 @@ set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_WARNINGS OFF CACHE BOOL "" FORCE)
 set(SPDLOG_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(3rd-party/spdlog-1.17.0 EXCLUDE_FROM_ALL)
+if (TARGET spdlog)
+    set_target_properties(spdlog PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Quick QuickControls2)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
@@ -64,6 +67,9 @@ set(APP_QML_FILES
     src/qml/components/DiffPane.qml
     src/qml/components/SidebarPane.qml
     src/qml/components/SidebarModuleCard.qml
+    src/qml/components/SidebarProjectActions.qml
+    src/qml/components/SidebarCategoryActions.qml
+    src/qml/components/SidebarFilterTree.qml
     src/qml/components/TopBar.qml
     src/qml/components/BomPane.qml
 )
@@ -104,3 +110,4 @@ install(TARGETS ${APP_NAME}
     BUNDLE DESTINATION .
     RUNTIME DESTINATION bin
 )
+
