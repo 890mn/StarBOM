@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.21)
-project(Link2BOM VERSION 0.1 LANGUAGES CXX)
+project(Link2BOM VERSION 1.0.0 LANGUAGES CXX)
 
 set(APP_NAME Link2BOM)
 
